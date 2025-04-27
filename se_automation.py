@@ -1,31 +1,36 @@
 import re
+import sys
 import time
 
 import pyautogui
 import subprocess
 
+from pre_startup_sol_mod import Modifier
 from properties import Properties
+from se_scripting import Script
+
+
+class DefaultScripts:
+    turn_around_script = Script.turn_around_script(60)
 
 
 class WindowController:
     @staticmethod
     def initial_setup():
+        # before startup, assert, that the sun is modified appropriately
+        try:
+            assert Modifier.check_modification_state()
+        except:
+            raise Exception("Sol properties have not been set up yet. Run \"pre_startup_sol_mod.py\".")
+
+        # if yes, continue
         WindowController._prepare_window()
         print("Window setup completed.")
-        WindowController.move(Properties.cam_settings_pos)
-        time.sleep(Properties.sleep_normal)
-        manual_mode_pos = None
-        for i in range(4):
-            manual_mode_pos = WindowController._locate_manual_icon()
-            if manual_mode_pos is not None:
-                break
-            else:
-                pyautogui.hotkey(Properties.change_camera_mode)
-            time.sleep(Properties.sleep_quick)
-        if manual_mode_pos is None:
-            raise Exception("Could not set camera mode to Manual.")
-        print("Camera mode setup completed.")
+        WindowController.enter_command_procedure(f"{Properties.set_cmd} {Properties.photo_mode_var} {Properties.default_photo_mode_val}")
         WindowController.move(Properties.neutral_pos)
+        print("Camera mode setup completed.")
+        DefaultScripts.turn_around_script.generate()
+        print("Default scripts generated.")
 
     @staticmethod
     def _prepare_window():
@@ -82,21 +87,22 @@ class WindowController:
         pyautogui.click(location[0], location[1])
 
     @staticmethod
-    def is_terminal_open() -> bool:
+    def _is_terminal_open() -> bool:
         pos = WindowController._locate_close_icon()
         if pos is None:
             return False
         return True
 
     @staticmethod
-    def open_terminal():
-        if WindowController.is_terminal_open():
+    def _open_terminal():
+        time.sleep(Properties.sleep_long)
+        if WindowController._is_terminal_open():
             pass
         else:
             pyautogui.hotkey(Properties.open_console)
 
     @staticmethod
-    def close_terminal():
+    def _close_terminal():
         pos = WindowController._locate_close_icon()
         if pos is None:
             pass
@@ -105,33 +111,22 @@ class WindowController:
             WindowController.move_click(click_pos)
 
     @staticmethod
-    def enter_terminal_command(command: str):
-        assert WindowController.is_terminal_open()
-        WindowController.move_click(Properties.console_input_pos)
+    def _enter_terminal_command(command: str):
+        assert WindowController._is_terminal_open()
         pyautogui.typewrite(command)
         pyautogui.hotkey(Properties.enter)
 
-
-class FileController:
     @staticmethod
-    def _load_file(path: str) -> str:
-        f = open(path, 'r')
-        content = f.read()
-        f.close()
-        return content
+    def enter_command_procedure(command: str):
+        WindowController._open_terminal()
+        time.sleep(Properties.sleep_quick)
+        WindowController._enter_terminal_command(command)
+        WindowController._close_terminal()
 
     @staticmethod
-    def _load_log_file() -> str:
-        return FileController._load_file(Properties.se_log_file)
-
-    @staticmethod
-    def fetch_exposure_comp_value() -> float | None:
-        log_file_lines = FileController._load_log_file().splitlines()
-        exposure_comp_lines = [line for line in log_file_lines if Properties.exposure_comp_var in line]
-        if len(exposure_comp_lines) < 1:
-            return None
-        else:
-            return float(exposure_comp_lines[-1].split()[3])
+    def run_script(script: Script):
+        WindowController.enter_command_procedure(f"{Properties.run_cmd} {script.name}")
+        time.sleep(script.run_duration)
 
 
 class VirtualCamera:
@@ -145,32 +140,20 @@ class VirtualCamera:
         self.exposure_comp = exposure_comp
 
     def set_fov(self):
-        time.sleep(Properties.sleep_normal)
-        WindowController.open_terminal()
-        time.sleep(Properties.sleep_quick)
-        WindowController.move_click(Properties.console_input_pos)
-        WindowController.enter_terminal_command(f"FOV {self.field_of_view}")
-        WindowController.close_terminal()
+        WindowController.enter_command_procedure(f"{Properties.fov_cmd} {self.field_of_view}")
 
     def set_exposure_comp(self):
-        time.sleep(Properties.sleep_normal)
-        WindowController.open_terminal()
-        time.sleep(Properties.sleep_quick)
-        WindowController.move_click(Properties.console_input_pos)
-        WindowController.enter_terminal_command(f"{Properties.get_cmd} {Properties.exposure_comp_var}")
-        WindowController.close_terminal()
-        WindowController.move(Properties.neutral_pos)
+        WindowController.enter_command_procedure(f"{Properties.set_cmd} {Properties.exposure_comp_var} {self.exposure_comp}")
 
-        current_exposure_comp = FileController.fetch_exposure_comp_value()
-        difference = abs(current_exposure_comp - self.exposure_comp)
+    def set_position(self, dist_au: float, lat_deg: float, lon_deg: float):
+        set_position_script = Script.set_position_script(dist_au, lat_deg, lon_deg)
+        set_position_script.generate()
+        WindowController.run_script(set_position_script)
+        print(f"\"{self.name}\" positioned at RA: {lon_deg}°, dec: {lat_deg}°, {dist_au} AU from Sol.")
 
-        if current_exposure_comp < self.exposure_comp:
-            increase_or_decrease_hotkey = Properties.increase_exposure
-        else:
-            increase_or_decrease_hotkey = Properties.decrease_exposure
-
-        for i in range(int(difference / self.exposure_comp_step)):
-            pyautogui.hotkey(increase_or_decrease_hotkey)
+    def turn_around(self):
+        WindowController.run_script(DefaultScripts.turn_around_script)
+        print(f"\"{self.name}\" pointing towards the stars.")
 
     def setup(self):
         self.set_fov()
@@ -179,15 +162,13 @@ class VirtualCamera:
 
 
 WindowController.initial_setup()
-
-
-sun_cam = VirtualCamera("Sun Cam", 20, -13)
-star_cam = VirtualCamera("Star Cam", 100, 1.25)
-
-sun_cam.setup()
-time.sleep(1)
+star_cam = VirtualCamera("Star Cam", 45, 1)
 star_cam.setup()
-star_cam.field_of_view = 80
-star_cam.set_fov()
-star_cam.field_of_view = 40
+star_cam.set_position(2.97, -60.8339927, 219.8959296)
+star_cam.exposure_comp = -13
+star_cam.set_exposure_comp()
+star_cam.turn_around()
+star_cam.exposure_comp = 1
+star_cam.set_exposure_comp()
+star_cam.field_of_view = 0.1
 star_cam.set_fov()

@@ -21,18 +21,24 @@ class Properties:
     change_camera_mode = "v"
     enter = "enter"
 
-    # keyword variables
+    # keyword variables, values
     exposure_comp_var = "ExposureComp"
+    photo_mode_var = "PhotoMode"
+    default_photo_mode_val = "1"
 
     # se commands
     get_cmd = "Get"
+    set_cmd = "Set"
     run_cmd = "run"
+    fov_cmd = "FOV"
 
     # directories and files
     assets_dir = "assets/"
     se_dir = "/home/fred/.steam/steam/steamapps/common/SpaceEngine/"
     screenshots_dir = se_dir + "screenshots/"
     se_log_file = se_dir + "system/se.log"
+    se_catalogs_pak_file = se_dir + "data/catalogs/Catalogs.pak"
+    scripts_dir = se_dir + "addons/scripts/"
 
     # regions
     region_cam_settings = tuple((530, 964) + width_height)
