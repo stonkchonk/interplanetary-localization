@@ -20,12 +20,12 @@ Turn
 {{
     AngularSpeed    {angular_speed}
     Axis            (0, 1, 0)
-    FadeTime        0.0
+    FadeTime        {fade_time}
 }}
 Wait    {turn_duration}
 StopTurn
 {{
-    FadeTime        0.0
+    FadeTime        {fade_time}
 }}
 """
 
@@ -55,15 +55,13 @@ class Script:
         )
 
     @classmethod
-    def turn_around_script(cls, turn_duration: float):
+    def turn_around_script(cls, turn_duration: float = 40, fade_time: float = 5):
         return cls(
             'turn_around',
             Templates.turn_around.format(
                 angular_speed=180/turn_duration,
-                turn_duration=turn_duration
+                turn_duration=turn_duration,
+                fade_time=fade_time
             ),
-            turn_duration + Properties.sleep_long
+            turn_duration + Properties.sleep_long * fade_time
         )
-
-Script.set_position_script(1.42, 30, 20.22).generate()
-Script.turn_around_script(36).generate()

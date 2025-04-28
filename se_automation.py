@@ -11,7 +11,7 @@ from se_scripting import Script
 
 
 class DefaultScripts:
-    turn_around_script = Script.turn_around_script(60)
+    turn_around_script = Script.turn_around_script()
 
 
 class WindowController:
@@ -139,36 +139,42 @@ class VirtualCamera:
         self.field_of_view = field_of_view
         self.exposure_comp = exposure_comp
 
-    def set_fov(self):
+    def _set_fov(self):
         WindowController.enter_command_procedure(f"{Properties.fov_cmd} {self.field_of_view}")
 
-    def set_exposure_comp(self):
+    def update_fov(self, field_of_view: float):
+        assert field_of_view <= 120
+        self.field_of_view = field_of_view
+        self._set_fov()
+
+    def _set_exposure_comp(self):
         WindowController.enter_command_procedure(f"{Properties.set_cmd} {Properties.exposure_comp_var} {self.exposure_comp}")
 
-    def set_position(self, dist_au: float, lat_deg: float, lon_deg: float):
-        set_position_script = Script.set_position_script(dist_au, lat_deg, lon_deg)
+    def update_exposure_comp(self, exposure_comp: float):
+        assert exposure_comp % self.exposure_comp_step == 0.0
+        self._set_exposure_comp()
+
+    def set_position(self, dist_au: float, right_ascension: float, declination: float):
+        set_position_script = Script.set_position_script(dist_au, declination, right_ascension)
         set_position_script.generate()
         WindowController.run_script(set_position_script)
-        print(f"\"{self.name}\" positioned at RA: {lon_deg}°, dec: {lat_deg}°, {dist_au} AU from Sol.")
+        print(f"\"{self.name}\" positioned at RA: {right_ascension}°, dec: {declination}°, {dist_au} AU from Sol.")
 
     def turn_around(self):
         WindowController.run_script(DefaultScripts.turn_around_script)
         print(f"\"{self.name}\" pointing towards the stars.")
 
     def setup(self):
-        self.set_fov()
-        self.set_exposure_comp()
+        self._set_fov()
+        self._set_exposure_comp()
         print(f"Setup of virtual camera \"{self.name}\" completed.")
 
 
 WindowController.initial_setup()
 star_cam = VirtualCamera("Star Cam", 45, 1)
 star_cam.setup()
-star_cam.set_position(2.97, -60.8339927, 219.8959296)
-star_cam.exposure_comp = -13
-star_cam.set_exposure_comp()
+star_cam.set_position(2.97, 37.954542, 89.264111)#alpha centauri 219.8959296, -60.8339927
+star_cam.update_exposure_comp(-13)
 star_cam.turn_around()
-star_cam.exposure_comp = 1
-star_cam.set_exposure_comp()
-star_cam.field_of_view = 0.1
-star_cam.set_fov()
+star_cam.update_exposure_comp(1)
+star_cam.update_fov(0.1)
