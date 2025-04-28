@@ -74,6 +74,11 @@ class Modifier:
         Modifier._extract_pak_content()
         mod_file_content = Modifier._mod_file_content()
         is_modified = Modifier._is_modified(mod_file_content)
+        continue_setup = input(f"Sol properties currently {"" if is_modified else "un"}modified. Continue? [y/n]")
+        if continue_setup.lower() != "y":
+            Modifier._clear_temp_folder()
+            print("Quit setup.")
+            return
         modified_mod_file_content = Modifier._replace_mod_file_properties(mod_file_content, is_modified)
         Modifier._content_to_mod_file(modified_mod_file_content)
         Modifier._write_to_pak()
