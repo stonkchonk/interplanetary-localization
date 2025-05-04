@@ -1,9 +1,12 @@
+import os
 import re
-import sys
 import time
+import shutil
+from typing import Literal
 
 import pyautogui
 import subprocess
+import cv2
 
 from pre_startup_sol_mod import Modifier
 from properties import Properties
@@ -12,6 +15,7 @@ from se_scripting import Script
 
 class DefaultScripts:
     turn_around_script = Script.turn_around_script()
+    sun_detection_script = Script.sun_detection_script()
 
 
 class WindowController:
@@ -30,7 +34,13 @@ class WindowController:
         WindowController.move(Properties.neutral_pos)
         print("Camera mode setup completed.")
         DefaultScripts.turn_around_script.generate()
+        DefaultScripts.sun_detection_script.generate()
         print("Default scripts generated.")
+        try:
+            shutil.rmtree(Properties.screenshots_dir)
+            print("Cleansed old screenshots.")
+        except:
+            pass
 
     @staticmethod
     def _prepare_window():
@@ -46,6 +56,9 @@ class WindowController:
         # validate window size with refreshed window info
         time.sleep(Properties.sleep_normal)
         win_info = WindowController._obtain_window_info(Properties.se_title)
+        if len(win_info) < 5:
+            print("Warning: No window size validation possible.")
+            return
         match = re.match(r"\((\d+)x(\d+)\)", win_info[4])
         width, height = int(match.group(1)), int(match.group(2))
         if width != Properties.width_height[0] or height != Properties.width_height[1]:
@@ -129,6 +142,30 @@ class WindowController:
         time.sleep(script.run_duration)
 
 
+class FileController:
+    @staticmethod
+    def _read_image(path: str) -> cv2.typing.MatLike:
+        return cv2.imread(path)
+
+    @staticmethod
+    def fetch_latest_image_by_tag(tag: str) -> cv2.typing.MatLike | None:
+        all_files = os.listdir(Properties.screenshots_dir)
+        tagged_files = [f for f in all_files if tag in f]
+        if len(tagged_files) >= 1:
+            tagged_files.sort()
+            return FileController._read_image(Properties.screenshots_dir + tagged_files[-1])
+        else:
+            return None
+
+    @staticmethod
+    def fetch_multiple_by_tag(tags: list[str]) -> dict[str, cv2.typing.MatLike | None]:
+        image_dict = {}
+        for tag in tags:
+            image_dict[tag] = FileController.fetch_latest_image_by_tag(tag)
+        return image_dict
+
+
+
 class VirtualCamera:
     exposure_comp_step = 0.25
 
@@ -164,6 +201,36 @@ class VirtualCamera:
         WindowController.run_script(DefaultScripts.turn_around_script)
         print(f"\"{self.name}\" pointing towards the stars.")
 
+    @staticmethod
+    def rand_rotate():
+        rand_rotate_script = Script.rotate_randomly_3_axes()
+        rand_rotate_script.generate()
+        WindowController.run_script(rand_rotate_script)
+        angles = rand_rotate_script.additional_information
+        print(f"Rotated around 3 axes: x:{angles[0]}°, y:{angles[1]}°, z:{angles[2]}°.")
+
+    @staticmethod
+    def take_sun_detection_screenshots() -> dict[str, cv2.typing.MatLike | None]:
+        WindowController.run_script(DefaultScripts.sun_detection_script)
+        print("Took six sun detection screenshots.")
+        return FileController.fetch_multiple_by_tag(Properties.sun_detection_image_prefixes)
+        # TODO: Erweitern um return wert, nämlich die Bilder
+
+    @staticmethod
+    def turn_precisely(axis: Literal['x', 'y', 'z'], turn_angle: float):
+        turn_script = Script.turn_precisely_script(axis, turn_angle)
+        turn_script.generate()
+        WindowController.run_script(turn_script)
+        print(f"Rotated around {axis}-axis by {turn_angle}°.")
+
+    @staticmethod
+    def take_screenshot(prefix: str) -> cv2.typing.MatLike:
+        screenshot_script = Script.take_screenshot_script(prefix)
+        screenshot_script.generate()
+        WindowController.run_script(screenshot_script)
+        print(f"Took screenshot \"{prefix}\".")
+        return FileController.fetch_latest_image_by_tag(prefix)
+
     def setup(self):
         self._set_fov()
         self._set_exposure_comp()
@@ -171,10 +238,37 @@ class VirtualCamera:
 
 
 WindowController.initial_setup()
-star_cam = VirtualCamera("Star Cam", 45, 1)
+star_cam = VirtualCamera("Star Cam", 92, -2)
 star_cam.setup()
-star_cam.set_position(2.97, 37.954542, 89.264111)#alpha centauri 219.8959296, -60.8339927
-star_cam.update_exposure_comp(-13)
-star_cam.turn_around()
-star_cam.update_exposure_comp(1)
-star_cam.update_fov(0.1)
+#for axis in ['y', 'x']:
+#for angle in [0, 11.5, 23, 34.5, 46]:
+#    star_cam.set_position(150, 37.954542, 89.264111)
+#    star_cam.turn_precisely('y', angle)
+#    star_cam.turn_precisely('x', 23)
+#    star_cam.take_screenshot(f"y_{str(angle)}_")
+
+star_cam.set_position(6, 37.954542, 89.264111)
+
+star_cam.turn_precisely('y', 23)
+#star_cam.turn_precisely('x', 23)
+#_ = input('press to continue')
+image = star_cam.take_screenshot('turn_vs_skbx')
+image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#_, image = cv2.threshold(image, 250, 255, cv2.THRESH_BINARY)
+cv2.imshow('test', image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+#star_cam.take_screenshot(f"yx_{str(23)}_")
+
+#star_cam.set_position(150, 37.954542, 89.264111)
+#star_cam.turn_precisely('x', 23)
+#star_cam.turn_precisely('y', 23)
+#star_cam.take_screenshot(f"xy_{str(23)}_")
+#star_cam.rand_rotate()
+#star_cam.update_fov(92)
+#star_cam.update_exposure_comp(-13)
+#star_cam.take_sun_detection_screenshots()
+#star_cam.update_exposure_comp(-13)
+#star_cam.turn_around()
+#star_cam.update_exposure_comp(1)
+#star_cam.update_fov(0.1)

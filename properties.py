@@ -32,6 +32,27 @@ class Properties:
     run_cmd = "run"
     fov_cmd = "FOV"
 
+    # script names
+    set_position = "set_position"
+    turn_around = "turn_around"
+    rand_rotate = "rand_rotate"
+    sun_detection_script = "detect_sun"
+    turn_precisely_script = "turn_precisely"
+    take_screenshot_script = "take_screenshot"
+
+    # screenshot prefixes
+    sun_detection_procedure = "sdp"
+    distance_estimation_procedure = "dep"
+    star_tracker_procedure = "stp"
+    sun_detection_image_prefixes = [
+        "front",
+        "top",
+        "back",
+        "bottom",
+        "left",
+        "right"
+    ]
+
     # directories and files
     assets_dir = "assets/"
     se_dir = "/home/fred/.steam/steam/steamapps/common/SpaceEngine/"
