@@ -4,6 +4,7 @@ import time
 import shutil
 from typing import Literal
 
+import numpy as np
 import pyautogui
 import subprocess
 import cv2
@@ -20,7 +21,7 @@ class DefaultScripts:
 
 class WindowController:
     @staticmethod
-    def initial_setup():
+    def initial_setup(cleanse_old_screenshots: bool = True):
         # before startup, assert, that the sun is modified appropriately
         try:
             assert Modifier.check_modification_state()
@@ -36,11 +37,12 @@ class WindowController:
         DefaultScripts.turn_around_script.generate()
         DefaultScripts.sun_detection_script.generate()
         print("Default scripts generated.")
-        try:
-            shutil.rmtree(Properties.screenshots_dir)
-            print("Cleansed old screenshots.")
-        except:
-            pass
+        if cleanse_old_screenshots:
+            try:
+                shutil.rmtree(Properties.screenshots_dir)
+                print("Cleansed old screenshots.")
+            except:
+                pass
 
     @staticmethod
     def _prepare_window():
@@ -224,11 +226,12 @@ class VirtualCamera:
         print(f"Rotated around {axis}-axis by {turn_angle}°.")
 
     @staticmethod
-    def take_screenshot(prefix: str) -> cv2.typing.MatLike:
-        screenshot_script = Script.take_screenshot_script(prefix)
-        screenshot_script.generate()
-        WindowController.run_script(screenshot_script)
-        print(f"Took screenshot \"{prefix}\".")
+    def take_screenshot(prefix: str, fetch_without_taking: bool = False) -> cv2.typing.MatLike:
+        if not fetch_without_taking:
+            screenshot_script = Script.take_screenshot_script(prefix)
+            screenshot_script.generate()
+            WindowController.run_script(screenshot_script)
+            print(f"Took screenshot \"{prefix}\".")
         return FileController.fetch_latest_image_by_tag(prefix)
 
     def setup(self):
@@ -239,13 +242,43 @@ class VirtualCamera:
 
 if __name__ == "__main__":
     WindowController.initial_setup()
-    star_cam = VirtualCamera("Star Cam", 92, -33.25)
+    star_cam = VirtualCamera("Star Cam", 92, -13.0)
     star_cam.setup()
-    #for axis in ['y', 'x']:
-    for angle in [0, 11.5, 23, 34.5, 45.5, 45.6, 45.7, 45.8, 45.9, 46.0]:
-        star_cam.set_position(2.55, 37.954542, 89.264111)
-        star_cam.turn_precisely('y', angle)
-        #star_cam.turn_precisely('x', 23)
-        image = star_cam.take_screenshot(f"y_{str(angle)}_")
+    for dist in [2**i for i in range(-6, 7+1)]:
+        star_cam.set_position(dist, 37.954542, 89.264111)
+        print(f"distance: {dist}AU")
+        image = star_cam.take_screenshot(f"dist_{dist}AU", True)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        cv2.imwrite(f"{angle}.png", image)
+        _, mask = cv2.threshold(image, 248, 255, cv2.THRESH_BINARY)
+        inv_mask = cv2.bitwise_not(mask)
+        masked = cv2.bitwise_and(image, inv_mask)
+        cv2.imwrite(f"{dist}AU.png", mask)
+        #for angle in [i for i in [45, 45.3, 45.5, 45.6, 45.8, 45.9]]:
+        #    supposed_x = (999 - 499.5) * (angle / 46) + 499.5
+        #    supposed_point = (supposed_x, 499.5)
+        #    star_cam.set_position(2.55, 37.954542, 89.264111)
+        #    print(f"angle: {angle}°, {supposed_point}")
+        #    log_str += f"angle: {angle}°, {supposed_point}\n"
+        #    star_cam.turn_precisely('y', angle)
+        #    image = star_cam.take_screenshot(f"y_{str(angle)}_")
+        #    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        #    cv2.imwrite(f"{angle}.png", image)
+    image = cv2.imread("2AU.png", cv2.IMREAD_GRAYSCALE)
+    print(image.shape)
+
+    rows = image.shape[0]
+    cols = image.shape[1]
+
+    vector_sum = np.array([0, 0])
+    num_of_dots = 0
+    for r in range(0, rows):
+        for c in range(0, cols):
+            val = image[r][c]
+            if val > 0:
+
+                vector_sum = vector_sum + np.array([r, c])
+                num_of_dots += 1
+                #print(val, r, c)
+
+    center_point = vector_sum * (1/num_of_dots)
+    print(num_of_dots, center_point)
