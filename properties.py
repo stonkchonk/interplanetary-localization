@@ -3,10 +3,9 @@ class Properties:
     se_title = "SpaceEngine"
     top_corner = 0, 0
     width_height = 1000, 1000
-    cam_settings_pos = 730, 998
     neutral_pos = 50, 50
-    console_input_pos = 500, 747
     click_correction = 4, 4
+    center_point = 499.5, 499.5
 
     # waiting for gui sleep times
     sleep_minimal = 0.1

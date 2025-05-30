@@ -16,12 +16,17 @@ from se_scripting import Script
 
 class DefaultScripts:
     turn_around_script = Script.turn_around_script()
-    sun_detection_script = Script.sun_detection_script()
+    sun_detection_script = Script.surroundings_imaging_script()
 
 
 class WindowController:
     @staticmethod
     def initial_setup(cleanse_old_screenshots: bool = True):
+        """
+        Complete SE setup procedure.
+        :param cleanse_old_screenshots:
+        :return:
+        """
         # before startup, assert, that the sun is modified appropriately
         try:
             assert Modifier.check_modification_state()
@@ -43,6 +48,15 @@ class WindowController:
                 print("Cleansed old screenshots.")
             except:
                 pass
+
+    @staticmethod
+    def simple_setup():
+        """
+        Partial SE setup procedure, just focuses the window.
+        :return:
+        """
+        WindowController._prepare_window()
+
 
     @staticmethod
     def _prepare_window():

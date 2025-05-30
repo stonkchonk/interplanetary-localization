@@ -115,7 +115,7 @@ class Script:
         )
 
     @classmethod
-    def sun_detection_script(cls):
+    def surroundings_imaging_script(cls):
         script_str = ""
         # images for front, top, back, bottom
         for i in range(0, 4):
@@ -124,6 +124,7 @@ class Script:
             script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
             script_str += cls.generate_simple_turn_script(2, 0, 'x', 90) + "\n"
             script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+        # camera now facing initial front position again
 
         # images for left and right
         script_str += cls.generate_simple_turn_script(2, 0, 'y', 90) + "\n"
@@ -135,10 +136,14 @@ class Script:
         script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
         script_str += Templates.screenshot.format(
             prefix=Properties.sun_detection_procedure + "_" + Properties.sun_detection_image_prefixes[5])
+
+        # turn back to front facing view again
+        script_str += cls.generate_simple_turn_script(2, 0, 'y', 90) + "\n"
+
         return cls(
             Properties.sun_detection_script,
             script_str,
-            54
+            30
         )
 
     @classmethod
