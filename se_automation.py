@@ -218,8 +218,8 @@ class VirtualCamera:
         print(f"\"{self.name}\" pointing towards the stars.")
 
     @staticmethod
-    def rand_rotate():
-        rand_rotate_script = Script.rotate_randomly_3_axes()
+    def rand_rotate(override_angles: tuple[float, float, float] | None = None):
+        rand_rotate_script = Script.rotate_randomly_3_axes(override_angles)
         rand_rotate_script.generate()
         WindowController.run_script(rand_rotate_script)
         angles = rand_rotate_script.additional_information

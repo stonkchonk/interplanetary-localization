@@ -1,8 +1,9 @@
 import math
-import sys
-
-import numpy as np
+import cv2
 import torch
+
+from se_automation import WindowController, VirtualCamera
+#from sun_detection import SunDetector
 
 
 class RadialDistortionCorrector:
@@ -96,93 +97,69 @@ class RadialDistortionCorrector:
                 print(f"Epoch {epoch}: Loss = {loss.item():.12f}, Weights = {w.data}")
 
         # Final weights
-        return cls(w.tolist(), center_point, radius, exponents)
+        return cls(w.tolist(), center_point, norm_radius, exponents)
 
-
+"""
 if __name__ == "__main__":
     center = (499.5, 499.5)
-    radius = 499.5
-    distorted_points = [
-        (499.5, 499.5),  # 0°
-        (516.5, 499.5),  # 2°
-        (533.5, 499.5),  # 4°
-        (551.0, 499.5),  # 6°
-        (568.0, 499.5),  # 8°
-        (585.5, 499.5),  # 10°
-        (603.3, 499.5),  # 12°
-        (620.3, 499.5),  # 14°
-        (639.0, 499.5),  # 16°
-        (658.0, 499.5),  # 18°
-        (680.0, 499.5),  # 20°
-        (694.7, 499.5),  # 22°
-        (715.3, 499.5),  # 24°
-        (736.0, 499.5),  # 26°
-        (756.0, 499.5),  # 28°
-        (779.3, 499.5),  # 30°
-        (802.0, 499.5),  # 32°
-        (825.5, 499.5),  # 34°
-        (852.5, 499.5),  # 36°
-        (880.5, 499.5),  # 38°
-        (907.5, 499.5),  # 40°
-        (938.0, 499.5),  # 42°
-        (973.0, 499.5),  # 44°
-        (983.0, 499.5),  # 45°
-        #(991.5, 499.5),  # 45.3°
-        (992, 499.5),  # 45.5°
-        #(996.0, 499.5),  # 45.6°
-        #(997.0, 499.5),  # 45.8°
-        #(998.0, 499.5),  # 45.9°
-        (999.0, 499.5)  # 46°
-    ]
+    norm_radius = 499.5
+    field_of_view = 92
+    exposure_comp = -13.0
+    WindowController.initial_setup()
+    calibrate_cam = VirtualCamera("Calibration Cam", field_of_view, exposure_comp)
+
+    # predefine center and edge points as they should always be equal
     supposed_points = [
-        (499.5, 499.5),  # 0°
-        (521.2173913043479, 499.5),  # 2°
-        (542.9347826086956, 499.5),  # 4°
-        (564.6521739130435, 499.5),  # 6°
-        (586.3695652173913, 499.5),  # 8°
-        (608.0869565217391, 499.5),  # 10°
-        (629.804347826087, 499.5),  # 12°
-        (651.5217391304348, 499.5),  # 14°
-        (673.2391304347826, 499.5),  # 16°
-        (694.9565217391305, 499.5),  # 18°
-        (716.6739130434783, 499.5),  # 20°
-        (738.3913043478261, 499.5),  # 22°
-        (760.1086956521739, 499.5),  # 24°
-        (781.8260869565217, 499.5),  # 26°
-        (803.5434782608695, 499.5),  # 28°
-        (825.2608695652174, 499.5),  # 30°
-        (846.9782608695652, 499.5),  # 32°
-        (868.695652173913, 499.5),  # 34°
-        (890.4130434782609, 499.5),  # 36°
-        (912.1304347826087, 499.5),  # 38°
-        (933.8478260869565, 499.5),  # 40°
-        (955.5652173913043, 499.5),  # 42°
-        (977.2826086956522, 499.5),  # 44°
-        (988.1413043478261, 499.5),  # 45°
-        #(991.3989130434783, 499.5),  # 45.3°
-        (993.570652173913, 499.5),  # 45.5°
-        #(994.6565217391305, 499.5),  # 45.6°
-        #(996.8282608695652, 499.5),  # 45.8°
-        #(997.9141304347827, 499.5),  # 45.9°
-        (999.0, 499.5)  # 46°
+        center,  # center of image
+        (center[0] + norm_radius, center[1])  # edge of image
     ]
+    distorted_points = [
+        center,  # center of image always equals center of image
+        (center[0] + norm_radius, center[1])  # edge of image always equals edge of image
+    ]
+
+    # horizontal measurements
+    horizontal_offsets = [o*0.05 for o in range(1, 19+1)]
+    for offset in horizontal_offsets:
+        offset_angle = offset * field_of_view/2
+
+        calibrate_cam.set_position(2.55, 37.954542, 89.264111)
+        calibrate_cam.turn_precisely('y', offset_angle)
+        raw_image = calibrate_cam.take_screenshot(f"calib_{offset_angle}_")
+        measured_sun_center = SunDetector.center_point_of_raw(raw_image)
+        supposed_sun_center = center[0] + offset*norm_radius, center[1]
+
+        distorted_points.append(measured_sun_center)
+        supposed_points.append(supposed_sun_center)
+
+    '''
+    # diagonal measurements
+    diagonal_offsets = [1+o*0.05 for o in range(1, 4+1)]
+    for offset in diagonal_offsets:
+        offset_angle = offset * field_of_view/2
+
+        calibrate_cam.set_position(2.55, 37.954542, 89.264111)
+        calibrate_cam.turn_precisely('y', offset_angle)
+        calibrate_cam.turn_precisely('z', 45.0)
+        raw_image = calibrate_cam.take_screenshot(f"calib_{offset_angle}_")
+        measured_sun_center = SunDetector.center_point_of_raw(raw_image)
+        supposed_sun_center = center[0] + offset * norm_radius, center[1]
+
+        distorted_points.append(measured_sun_center)
+        supposed_points.append(supposed_sun_center)
+    '''
+    print("distorted")
+    print(distorted_points)
+    print("supposed")
+    print(supposed_points)
+
     corrector = RadialDistortionCorrector.corrector_from_points(distorted_points, supposed_points, center,
-                                                                radius, [1, 3, 5, 7])
+                                                                norm_radius, [1, 3, 5, 7])
+    #for p in distorted_points:
+    #    corrector.correct_distorted_point(p)
 
-    for idx, p in enumerate(distorted_points):
-        corrected = corrector.correct_distorted_point(p)
-
-        #print("--->",corrected, supposed_points[idx], distorted_points[idx])
-        print(f"corrected: {corrected[0]}, supposed: {supposed_points[idx][0]}, distorted: {distorted_points[idx][0]}")
-        
-    for p in [(0, 499.5), (100, 499.5), (200, 499.5), (400, 499.5), (600, 600), (300, 300)]:
-        corrected = corrector.correct_distorted_point(p)
-        print(corrected, p)
-
-
+    #print(corrector.supposed_distortions_str)
+    #print(corrector.corrected_distortions_str)
     print(corrector.function_str)
-    print(corrector.supposed_distortions_str)
-    print(corrector.corrected_distortions_str)
-
-
-
+    print(corrector.weights)
+"""

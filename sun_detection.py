@@ -1,4 +1,6 @@
 import numpy as np
+
+from lense_distortion import RadialDistortionCorrector
 from properties import Properties
 from se_automation import VirtualCamera, WindowController
 import cv2
@@ -48,6 +50,7 @@ class SunDetector:
         white_dot_matrix = SunDetector.white_dots(mask_image)
         num_of_dots = SunDetector.num_of_dots(white_dot_matrix)
         summed_vector = white_dot_matrix.sum(axis=0)
+        print(summed_vector)
         assert summed_vector.shape == (2,)
         norm_summed_vector = summed_vector * (1 / num_of_dots)
         # coordinates are reversed for some reason
@@ -103,10 +106,10 @@ if __name__ == "__main__":
     WindowController.initial_setup()
     sun_cam = VirtualCamera("Sun Detector Cam", 92, -13.0)
     sun_cam.setup()
-    sun_cam.set_position(2.55, 37.954542, 89.264111)
+    sun_cam.set_position(2500.0, 37.954542, 89.264111)
 
     # point camera in random direction
-    sun_cam.rand_rotate()
+    sun_cam.rand_rotate((15.366249339317221, 108.17559806534717, -30.157479271275918))
 
     # take images of surroundings
     surrounding_images_dict = sun_cam.take_sun_detection_screenshots()
@@ -135,9 +138,22 @@ if __name__ == "__main__":
 
     general_direction_image = surrounding_images_dict.get(general_direction_image_key)
     cv2.imwrite("general.png", general_direction_image)
-    sun_center_point = SunDetector.center_point_of_mask(SunDetector.raw_to_mask(general_direction_image))
-    sun_image_angle_rad = SunDetector.argument_of_point(sun_center_point, Properties.center_point)
+    observed_sun_point = SunDetector.center_point_of_mask(SunDetector.raw_to_mask(general_direction_image))
+    sun_image_angle_rad = SunDetector.argument_of_point(observed_sun_point, Properties.center_point)
     sun_image_angle_deg = sun_image_angle_rad * 180 / pi
     print(f"Argument of sun is: {sun_image_angle_deg}°")
     sun_cam.turn_precisely('z', sun_image_angle_deg)
+    # sun should now be right of the center aligned in the middle
+    distortion_corrector = RadialDistortionCorrector([0.273321270942688,
+                                                      -0.4249521493911743,
+                                                      0.17944473028182983,
+                                                      -0.03077179752290249],
+                                                     (499.5, 499.6), 499.5, [1, 3, 5, 7])
 
+    corrected_sun_point = distortion_corrector.correct_distorted_point(observed_sun_point)
+    radius_of_point = RadialDistortionCorrector.point_to_radius(corrected_sun_point, (499.5, 499.6), 499.5)
+    sun_cam.turn_precisely('y', -46*radius_of_point)
+
+    analysis_img = sun_cam.take_screenshot("analysis_img")
+    analysis_center = SunDetector.center_point_of_raw(analysis_img)
+    print(f"Sun now at pixel position: {analysis_center}")

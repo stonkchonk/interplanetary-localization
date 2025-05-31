@@ -98,10 +98,14 @@ class Script:
         )
 
     @classmethod
-    def rotate_randomly_3_axes(cls):
+    def rotate_randomly_3_axes(cls, override_angles: tuple[float, float, float] | None = None):
         x_angle = random.uniform(-180, 180)
         y_angle = random.uniform(-180, 180)
         z_angle = random.uniform(-180, 180)
+        if override_angles is not None:
+            x_angle = override_angles[0]
+            y_angle = override_angles[1]
+            z_angle = override_angles[1]
         script_str = cls.generate_simple_turn_script(2, 0, 'x', x_angle) + "\n"
         script_str += Templates.wait.format(duration=Properties.sleep_minimal) + "\n"
         script_str += cls.generate_simple_turn_script(2, 0, 'y', y_angle) + "\n"
