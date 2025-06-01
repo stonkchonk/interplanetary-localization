@@ -1,7 +1,7 @@
 import numpy as np
 
 from lense_distortion import RadialDistortionCorrector
-from properties import Properties
+from common import Common
 from se_automation import VirtualCamera, WindowController
 import cv2
 from math import atan, pi
@@ -14,7 +14,7 @@ class SunDetector:
         :param raw_image: Raw image of the sun in BGR
         :return: Mask image of relevant 'solar disc' pixels.
         """
-        assert raw_image.shape == Properties.width_height + (3,)
+        assert raw_image.shape == Common.width_height + (3,)
         # transform image to grayscale
         gray_image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
         # turn gray image to mask using thresholding
@@ -24,9 +24,9 @@ class SunDetector:
     @staticmethod
     def white_dots(mask_image: np.ndarray) -> np.ndarray:
         dots = []
-        assert mask_image.shape == Properties.width_height
-        for row in range(0, Properties.width_height[1]):
-            for col in range(0, Properties.width_height[0]):
+        assert mask_image.shape == Common.width_height
+        for row in range(0, Common.width_height[1]):
+            for col in range(0, Common.width_height[0]):
                 val = mask_image[row][col]
                 assert val == 0 or val == 255
                 if val > 0:
@@ -104,12 +104,13 @@ class SunDetector:
 
 if __name__ == "__main__":
     WindowController.initial_setup()
+    field_of_view = 92.0
     sun_cam = VirtualCamera("Sun Detector Cam", 92, -13.0)
     sun_cam.setup()
-    sun_cam.set_position(2500.0, 37.954542, 89.264111)
+    sun_cam.set_position(2.55, 37.954542, 89.264111)
 
     # point camera in random direction
-    sun_cam.rand_rotate((15.366249339317221, 108.17559806534717, -30.157479271275918))
+    sun_cam.rand_rotate()  # override: (55.2, 0.0, 45.0)
 
     # take images of surroundings
     surrounding_images_dict = sun_cam.take_sun_detection_screenshots()
@@ -117,42 +118,40 @@ if __name__ == "__main__":
     # point camera in general direction
     general_direction_image_key = SunDetector.identifier_of_sun_located_image(surrounding_images_dict)
     print(f"General direction is: {general_direction_image_key}")
-    if general_direction_image_key is Properties.sun_detection_image_prefixes[0]:
+    if general_direction_image_key is Common.sun_detection_image_prefixes[0]:
         # front
         pass
-    elif general_direction_image_key is Properties.sun_detection_image_prefixes[1]:
+    elif general_direction_image_key is Common.sun_detection_image_prefixes[1]:
         # top
         sun_cam.turn_precisely('x', 90.0)
-    elif general_direction_image_key is Properties.sun_detection_image_prefixes[2]:
+    elif general_direction_image_key is Common.sun_detection_image_prefixes[2]:
         # back
         sun_cam.turn_precisely('x', 180.0)
-    elif general_direction_image_key is Properties.sun_detection_image_prefixes[3]:
+    elif general_direction_image_key is Common.sun_detection_image_prefixes[3]:
         # bottom
         sun_cam.turn_precisely('x', -90.0)
-    elif general_direction_image_key is Properties.sun_detection_image_prefixes[4]:
+    elif general_direction_image_key is Common.sun_detection_image_prefixes[4]:
         # left
         sun_cam.turn_precisely('y', 90.0)
-    elif general_direction_image_key is Properties.sun_detection_image_prefixes[5]:
+    elif general_direction_image_key is Common.sun_detection_image_prefixes[5]:
         # right
         sun_cam.turn_precisely('y', -90.0)
 
     general_direction_image = surrounding_images_dict.get(general_direction_image_key)
-    cv2.imwrite("general.png", general_direction_image)
+
     observed_sun_point = SunDetector.center_point_of_mask(SunDetector.raw_to_mask(general_direction_image))
-    sun_image_angle_rad = SunDetector.argument_of_point(observed_sun_point, Properties.center_point)
+    sun_image_angle_rad = SunDetector.argument_of_point(observed_sun_point, Common.center_point)
     sun_image_angle_deg = sun_image_angle_rad * 180 / pi
+
     print(f"Argument of sun is: {sun_image_angle_deg}°")
     sun_cam.turn_precisely('z', sun_image_angle_deg)
     # sun should now be right of the center aligned in the middle
-    distortion_corrector = RadialDistortionCorrector([0.273321270942688,
-                                                      -0.4249521493911743,
-                                                      0.17944473028182983,
-                                                      -0.03077179752290249],
-                                                     (499.5, 499.6), 499.5, [1, 3, 5, 7])
+    distortion_corrector = RadialDistortionCorrector(Common.correction_weights_fov92, Common.center_point,
+                                                     Common.norm_radius, Common.correction_model_exponents)
 
     corrected_sun_point = distortion_corrector.correct_distorted_point(observed_sun_point)
-    radius_of_point = RadialDistortionCorrector.point_to_radius(corrected_sun_point, (499.5, 499.6), 499.5)
-    sun_cam.turn_precisely('y', -46*radius_of_point)
+    radius_of_point = distortion_corrector.self_point_to_radius(corrected_sun_point)
+    sun_cam.turn_precisely('y', -(field_of_view / 2) * radius_of_point)
 
     analysis_img = sun_cam.take_screenshot("analysis_img")
     analysis_center = SunDetector.center_point_of_raw(analysis_img)

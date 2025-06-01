@@ -1,7 +1,7 @@
 import random
 import time
 
-from properties import Properties
+from common import Common
 from typing import Literal
 
 
@@ -51,21 +51,21 @@ class Script:
         self.additional_information = additional_information
 
     def generate(self):
-        f = open(Properties.scripts_dir + self.name + '.se', "w")
+        f = open(Common.scripts_dir + self.name + '.se', "w")
         f.write(self.content)
         f.close()
-        time.sleep(Properties.sleep_normal)
+        time.sleep(Common.sleep_normal)
 
     @classmethod
     def set_position_script(cls, dist_au: float, lat_deg: float, lon_deg: float):
         return cls(
-            Properties.set_position,
+            Common.set_position,
             Templates.position.format(
                 dist_km=dist_au * 149597870.7,
                 lat_deg=lat_deg,
                 lon_deg=lon_deg
             ),
-            Properties.sleep_long
+            Common.sleep_long
         )
 
     @staticmethod
@@ -92,9 +92,9 @@ class Script:
         turn_duration = 40
         fade_time = 5
         return cls(
-            Properties.turn_around,
+            Common.turn_around,
             Script.generate_simple_turn_script(turn_duration, fade_time, 'y', 180),
-            turn_duration + Properties.sleep_long * fade_time
+            turn_duration + Common.sleep_long * fade_time
         )
 
     @classmethod
@@ -105,14 +105,14 @@ class Script:
         if override_angles is not None:
             x_angle = override_angles[0]
             y_angle = override_angles[1]
-            z_angle = override_angles[1]
+            z_angle = override_angles[2]
         script_str = cls.generate_simple_turn_script(2, 0, 'x', x_angle) + "\n"
-        script_str += Templates.wait.format(duration=Properties.sleep_minimal) + "\n"
+        script_str += Templates.wait.format(duration=Common.sleep_minimal) + "\n"
         script_str += cls.generate_simple_turn_script(2, 0, 'y', y_angle) + "\n"
-        script_str += Templates.wait.format(duration=Properties.sleep_minimal) + "\n"
+        script_str += Templates.wait.format(duration=Common.sleep_minimal) + "\n"
         script_str += cls.generate_simple_turn_script(2, 0, 'z', z_angle) + "\n"
         return cls(
-            Properties.rand_rotate,
+            Common.rand_rotate,
             script_str,
             6.5,
             (x_angle, y_angle, z_angle)
@@ -124,28 +124,28 @@ class Script:
         # images for front, top, back, bottom
         for i in range(0, 4):
             script_str += Templates.screenshot.format(
-                prefix=Properties.sun_detection_procedure + "_" + Properties.sun_detection_image_prefixes[i]) + "\n"
-            script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+                prefix=Common.sun_detection_procedure + "_" + Common.sun_detection_image_prefixes[i]) + "\n"
+            script_str += Templates.wait.format(duration=Common.sleep_long) + "\n"
             script_str += cls.generate_simple_turn_script(2, 0, 'x', 90) + "\n"
-            script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+            script_str += Templates.wait.format(duration=Common.sleep_long) + "\n"
         # camera now facing initial front position again
 
         # images for left and right
         script_str += cls.generate_simple_turn_script(2, 0, 'y', 90) + "\n"
-        script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+        script_str += Templates.wait.format(duration=Common.sleep_long) + "\n"
         script_str += Templates.screenshot.format(
-            prefix=Properties.sun_detection_procedure + "_" + Properties.sun_detection_image_prefixes[4]) + "\n"
-        script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+            prefix=Common.sun_detection_procedure + "_" + Common.sun_detection_image_prefixes[4]) + "\n"
+        script_str += Templates.wait.format(duration=Common.sleep_long) + "\n"
         script_str += cls.generate_simple_turn_script(4, 0, 'y', -180) + "\n"
-        script_str += Templates.wait.format(duration=Properties.sleep_long) + "\n"
+        script_str += Templates.wait.format(duration=Common.sleep_long) + "\n"
         script_str += Templates.screenshot.format(
-            prefix=Properties.sun_detection_procedure + "_" + Properties.sun_detection_image_prefixes[5])
+            prefix=Common.sun_detection_procedure + "_" + Common.sun_detection_image_prefixes[5])
 
         # turn back to front facing view again
         script_str += cls.generate_simple_turn_script(2, 0, 'y', 90) + "\n"
 
         return cls(
-            Properties.sun_detection_script,
+            Common.sun_detection_script,
             script_str,
             30
         )
@@ -153,7 +153,7 @@ class Script:
     @classmethod
     def turn_precisely_script(cls, axis: Literal['x', 'y', 'z'], turn_angle: float, turn_duration: float = 2, fade_time: float = 0.5):
         return cls(
-            Properties.turn_precisely_script,
+            Common.turn_precisely_script,
             cls.generate_simple_turn_script(turn_duration, fade_time, axis, turn_angle),
             turn_duration + fade_time
         )
@@ -161,7 +161,7 @@ class Script:
     @classmethod
     def take_screenshot_script(cls, prefix: str):
         return cls(
-            Properties.take_screenshot_script,
+            Common.take_screenshot_script,
             Templates.screenshot.format(prefix=prefix),
             1
         )

@@ -1,11 +1,17 @@
-class Properties:
+# common properties and values
+class Common:
     # window settings and positions
     se_title = "SpaceEngine"
     top_corner = 0, 0
     width_height = 1000, 1000
     neutral_pos = 50, 50
     click_correction = 4, 4
-    center_point = 499.5, 499.5
+    norm_radius = 499.5
+    center_point = norm_radius, norm_radius
+
+    # lense correction model weights
+    correction_model_exponents = [1, 3, 5, 7]
+    correction_weights_fov92 = [0.273321270942688, -0.4249521493911743, 0.17944473028182983, -0.03077179752290249]
 
     # waiting for gui sleep times
     sleep_minimal = 0.1

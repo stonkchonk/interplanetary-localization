@@ -1,7 +1,7 @@
 import os
 import zipfile
 import shutil
-from properties import Properties
+from common import Common
 
 
 class Modifier:
@@ -21,11 +21,11 @@ class Modifier:
     assert len(original_sol_properties) == len(modded_sol_properties)
     temp_folder = "temp/"
     mod_file_path = temp_folder + "planets/SolarSys.sc"
-    pak_file = Properties.se_catalogs_pak_file
+    pak_file = Common.se_catalogs_pak_file
 
     @staticmethod
     def _extract_pak_content():
-        with zipfile.ZipFile(Properties.se_catalogs_pak_file, 'r') as pak:
+        with zipfile.ZipFile(Common.se_catalogs_pak_file, 'r') as pak:
             pak.extractall(Modifier.temp_folder)
 
     @staticmethod
