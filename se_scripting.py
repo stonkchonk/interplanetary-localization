@@ -61,7 +61,7 @@ class Script:
         return cls(
             Common.set_position,
             Templates.position.format(
-                dist_km=dist_au * 149597870.7,
+                dist_km=dist_au * Common.astronomical_unit_km,
                 lat_deg=lat_deg,
                 lon_deg=lon_deg
             ),

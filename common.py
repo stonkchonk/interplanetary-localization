@@ -72,3 +72,13 @@ class Common:
     # icons
     close_x = assets_dir + "x.png"
     manual_m = assets_dir + "manual.png"
+
+    # astronomical size definitions in km
+    astronomical_unit_km = 149597870.7
+    sun_radius_km = 695700
+
+    # sun distance estimation camera fov angles
+    distance_estimation_fov_settings = [
+        12.8, 6.4, 3.2, 1.6, 0.8, 0.4, 0.2
+    ]
+

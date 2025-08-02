@@ -105,7 +105,7 @@ class SunDetector:
 if __name__ == "__main__":
     WindowController.initial_setup()
     field_of_view = 92.0
-    sun_cam = VirtualCamera("Sun Detector Cam", 92, -13.0)
+    sun_cam = VirtualCamera("Sun Detector Cam", field_of_view, -13.0)
     sun_cam.setup()
     sun_cam.set_position(2.55, 37.954542, 89.264111)
 
