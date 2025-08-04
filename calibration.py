@@ -1,12 +1,12 @@
 from lense_distortion import RadialDistortionCorrector
 from se_automation import WindowController, VirtualCamera
 from sun_detection import SunDetector
-from common import Common
+from common import Params
 
 if __name__ == "__main__":
     # define image, camera and correction model parameters
-    center = Common.center_point
-    norm_radius = Common.norm_radius
+    center = Params.center_point
+    norm_radius = Params.norm_radius
     field_of_view = 92
     exposure_comp = -13.0
     model_exponents = [1, 3, 5, 7]

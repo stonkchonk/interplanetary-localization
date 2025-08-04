@@ -1,5 +1,8 @@
 # common properties and values
-class Common:
+import math
+
+
+class Params:
     # window settings and positions
     se_title = "SpaceEngine"
     top_corner = 0, 0
@@ -75,10 +78,25 @@ class Common:
 
     # astronomical size definitions in km
     astronomical_unit_km = 149597870.7
-    sun_radius_km = 695700
+    sun_radius_km = 701827.6  # supposed: 695697.9
 
-    # sun distance estimation camera fov angles
+    # sun distance estimation camera fov settings
     distance_estimation_fov_settings = [
         12.8, 6.4, 3.2, 1.6, 0.8, 0.4, 0.2
     ]
+    sufficient_perceived_diameter = 0.45
+
+
+class Code:
+    @staticmethod
+    def deg_to_rad(angle_deg: float) -> float:
+        return angle_deg * math.pi / 180
+
+    @staticmethod
+    def km_to_au(length: float) -> float:
+        return length / Params.astronomical_unit_km
+
+    @staticmethod
+    def au_to_km(length: float) -> float:
+        return length * Params.astronomical_unit_km
 

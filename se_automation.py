@@ -10,7 +10,7 @@ import subprocess
 import cv2
 
 from pre_startup_sol_mod import Modifier
-from common import Common
+from common import Params
 from se_scripting import Script
 
 
@@ -36,15 +36,15 @@ class WindowController:
         # if yes, continue
         WindowController._prepare_window()
         print("Window setup completed.")
-        WindowController.enter_command_procedure(f"{Common.set_cmd} {Common.photo_mode_var} {Common.default_photo_mode_val}")
-        WindowController.move(Common.neutral_pos)
+        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.photo_mode_var} {Params.default_photo_mode_val}")
+        WindowController.move(Params.neutral_pos)
         print("Camera mode setup completed.")
         DefaultScripts.turn_around_script.generate()
         DefaultScripts.sun_detection_script.generate()
         print("Default scripts generated.")
         if cleanse_old_screenshots:
             try:
-                shutil.rmtree(Common.screenshots_dir)
+                shutil.rmtree(Params.screenshots_dir)
                 print("Cleansed old screenshots.")
             except:
                 pass
@@ -61,25 +61,25 @@ class WindowController:
     @staticmethod
     def _prepare_window():
         # obtain window information
-        win_info = WindowController._obtain_window_info(Common.se_title)
+        win_info = WindowController._obtain_window_info(Params.se_title)
         if win_info is None:
-            raise Exception(f"Window \"{Common.se_title}\" not found.")
+            raise Exception(f"Window \"{Params.se_title}\" not found.")
         # window to front
         win_id = win_info[0]
         subprocess.call(["wmctrl", "-ia", win_id])
         # resize and adjust placement
-        subprocess.call(["wmctrl", "-r", Common.se_title, "-e", f"0,{Common.top_corner[0]},{Common.top_corner[1]},{Common.width_height[0]},{Common.width_height[1]}"])
+        subprocess.call(["wmctrl", "-r", Params.se_title, "-e", f"0,{Params.top_corner[0]},{Params.top_corner[1]},{Params.width_height[0]},{Params.width_height[1]}"])
         # validate window size with refreshed window info
-        time.sleep(Common.sleep_normal)
-        win_info = WindowController._obtain_window_info(Common.se_title)
+        time.sleep(Params.sleep_normal)
+        win_info = WindowController._obtain_window_info(Params.se_title)
         if len(win_info) < 5:
             print("Warning: No window size validation possible.")
             return
         match = re.match(r"\((\d+)x(\d+)\)", win_info[4])
         width, height = int(match.group(1)), int(match.group(2))
-        if width != Common.width_height[0] or height != Common.width_height[1]:
-            raise Exception(f"Could not resize window to {Common.width_height}. "
-                            f"Do not to run {Common.se_title} in maximized or full screen mode.")
+        if width != Params.width_height[0] or height != Params.width_height[1]:
+            raise Exception(f"Could not resize window to {Params.width_height}. "
+                            f"Do not to run {Params.se_title} in maximized or full screen mode.")
 
     @staticmethod
     def _obtain_window_info(window_title: str) -> list[str] | None:
@@ -92,7 +92,7 @@ class WindowController:
     @staticmethod
     def _locate_on_screen(icon: str, region: tuple[int, int, int, int] | None = None) -> tuple[int, int] | None:
         if region is None:
-            region = (Common.top_corner[0], Common.top_corner[1], Common.width_height[0], Common.width_height[1])
+            region = (Params.top_corner[0], Params.top_corner[1], Params.width_height[0], Params.width_height[1])
         try:
             location_box = pyautogui.locateOnScreen(icon, confidence=0.8, region=region)
             return int(location_box.left), int(location_box.top)
@@ -101,11 +101,11 @@ class WindowController:
 
     @staticmethod
     def _locate_manual_icon() -> tuple[int, int] | None:
-        return WindowController._locate_on_screen(Common.manual_m, Common.region_cam_settings)
+        return WindowController._locate_on_screen(Params.manual_m, Params.region_cam_settings)
 
     @staticmethod
     def _locate_close_icon() -> tuple[int, int] | None:
-        return WindowController._locate_on_screen(Common.close_x)
+        return WindowController._locate_on_screen(Params.close_x)
 
     @staticmethod
     def move(location: tuple[int, int]):
@@ -124,11 +124,11 @@ class WindowController:
 
     @staticmethod
     def _open_terminal():
-        time.sleep(Common.sleep_long)
+        time.sleep(Params.sleep_long)
         if WindowController._is_terminal_open():
             pass
         else:
-            pyautogui.hotkey(Common.open_console)
+            pyautogui.hotkey(Params.open_console)
 
     @staticmethod
     def _close_terminal():
@@ -136,25 +136,25 @@ class WindowController:
         if pos is None:
             pass
         else:
-            click_pos = (pos[0] + Common.click_correction[0], pos[1] + Common.click_correction[1])
+            click_pos = (pos[0] + Params.click_correction[0], pos[1] + Params.click_correction[1])
             WindowController.move_click(click_pos)
 
     @staticmethod
     def _enter_terminal_command(command: str):
         assert WindowController._is_terminal_open()
         pyautogui.typewrite(command)
-        pyautogui.hotkey(Common.enter)
+        pyautogui.hotkey(Params.enter)
 
     @staticmethod
     def enter_command_procedure(command: str):
         WindowController._open_terminal()
-        time.sleep(Common.sleep_quick)
+        time.sleep(Params.sleep_quick)
         WindowController._enter_terminal_command(command)
         WindowController._close_terminal()
 
     @staticmethod
     def run_script(script: Script):
-        WindowController.enter_command_procedure(f"{Common.run_cmd} {script.name}")
+        WindowController.enter_command_procedure(f"{Params.run_cmd} {script.name}")
         time.sleep(script.run_duration)
 
 
@@ -165,11 +165,11 @@ class FileController:
 
     @staticmethod
     def fetch_latest_image_by_tag(tag: str) -> cv2.typing.MatLike | None:
-        all_files = os.listdir(Common.screenshots_dir)
+        all_files = os.listdir(Params.screenshots_dir)
         tagged_files = [f for f in all_files if tag in f]
         if len(tagged_files) >= 1:
             tagged_files.sort()
-            return FileController._read_image(Common.screenshots_dir + tagged_files[-1])
+            return FileController._read_image(Params.screenshots_dir + tagged_files[-1])
         else:
             return None
 
@@ -193,7 +193,7 @@ class VirtualCamera:
         self.exposure_comp = exposure_comp
 
     def _set_fov(self):
-        WindowController.enter_command_procedure(f"{Common.fov_cmd} {self.field_of_view}")
+        WindowController.enter_command_procedure(f"{Params.fov_cmd} {self.field_of_view}")
 
     def update_fov(self, field_of_view: float):
         assert field_of_view <= 120
@@ -201,7 +201,7 @@ class VirtualCamera:
         self._set_fov()
 
     def _set_exposure_comp(self):
-        WindowController.enter_command_procedure(f"{Common.set_cmd} {Common.exposure_comp_var} {self.exposure_comp}")
+        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.exposure_comp_var} {self.exposure_comp}")
 
     def update_exposure_comp(self, exposure_comp: float):
         assert exposure_comp % self.exposure_comp_step == 0.0
@@ -229,7 +229,7 @@ class VirtualCamera:
     def take_sun_detection_screenshots() -> dict[str, cv2.typing.MatLike | None]:
         WindowController.run_script(DefaultScripts.sun_detection_script)
         print("Took six sun detection screenshots.")
-        return FileController.fetch_multiple_by_tag(Common.sun_detection_image_prefixes)
+        return FileController.fetch_multiple_by_tag(Params.sun_detection_image_prefixes)
         # TODO: Erweitern um return wert, nämlich die Bilder
 
     @staticmethod
