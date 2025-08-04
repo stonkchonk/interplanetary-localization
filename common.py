@@ -78,7 +78,9 @@ class Params:
 
     # astronomical size definitions in km
     astronomical_unit_km = 149597870.7
-    sun_radius_km = 701827.6  # supposed: 695697.9
+    calculated_sun_radius_km = 701827.6
+    supposed_sun_radius_km = 695697.9
+
 
     # sun distance estimation camera fov settings
     distance_estimation_fov_settings = [

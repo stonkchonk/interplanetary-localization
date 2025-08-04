@@ -10,8 +10,8 @@ class DistanceEstimator:
 
     # calculation code
     @staticmethod
-    def distance_km(radial_angle: float) -> float:
-        return Params.sun_radius_km / sin(radial_angle)
+    def distance_km(radial_angle: float, sun_radius_km: float) -> float:
+        return sun_radius_km / sin(radial_angle)
 
     @staticmethod
     def radial_angle(camera_angle_rad: float, perceived_radius: float) -> float:
@@ -73,14 +73,15 @@ class DistanceEstimator:
         return DistanceEstimator.radial_angle(Code.deg_to_rad(fov), diameter / 2)
 
     @staticmethod
-    def distance_determination_procedure(camera: VirtualCamera) -> float:
+    def distance_determination_procedure(camera: VirtualCamera, sun_radius_km: float) -> float:
         """
         Determines the distance to the sun in km.
+        :param sun_radius_km: Radius of the sun in km
         :param camera: VirtualCamera instance
         :return: distance in km
         """
         radial_angle = DistanceEstimator.determine_radial_angle_procedure(camera)
-        return DistanceEstimator.distance_km(radial_angle)
+        return DistanceEstimator.distance_km(radial_angle, sun_radius_km)
 
     @staticmethod
     def radius_determination_procedure(camera: VirtualCamera, supposed_distance_km: float):
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     actual_distance = 50  # AU
     dist_cam.set_position(actual_distance, 10.0, -12.0) #37.954542, 89.264111
 
-    calculated_distance = Code.km_to_au(DistanceEstimator.distance_determination_procedure(dist_cam))
+    calculated_distance = Code.km_to_au(DistanceEstimator.distance_determination_procedure(dist_cam, Params.calculated_sun_radius_km))
     print(f"Calculated distance: {calculated_distance} AU")
     #print(f"Ratio: {calculated_distance / actual_distance}")
     #calculated_radius = DistanceEstimator.radius_determination_procedure(dist_cam, Code.au_to_km(actual_distance))
