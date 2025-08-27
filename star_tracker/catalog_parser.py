@@ -1,9 +1,15 @@
-import os
-
 import numpy as np
-from math import sin, cos
+from math import sin, cos, pi
 
 class UnitVector:
+
+    radians_per_degree = pi / 180
+    radians_per_hour = radians_per_degree * 15
+    radians_per_minute = radians_per_hour / 60
+    radians_per_second = radians_per_minute / 60
+    radians_per_arcmin = radians_per_degree / 60
+    radians_per_arcsec = radians_per_arcmin / 60
+
     def __init__(self, value: np.ndarray):
         self.value = value
 
@@ -16,6 +22,30 @@ class UnitVector:
         ])
         return cls(vector)
 
+    @classmethod
+    def from_celestial_coordinate(cls, ra_hours: float, ra_minutes: float, ra_seconds: float,
+                                  de_sign: str, de_degrees: float, de_minutes: float, de_seconds: float):
+        """
+        Creates directional unit vector from right ascension and declination coordinates.
+        :param ra_hours: right ascension hours value
+        :param ra_minutes: right ascension minutes value
+        :param ra_seconds: right ascension seconds value
+        :param de_sign: + or -
+        :param de_degrees: declination full degrees value
+        :param de_minutes: declination minutes value
+        :param de_seconds: declination seconds value
+        :return: An instance of this class
+        """
+        de_multiplier = -1 if de_sign == '-' else 1
+        ra_radians = (ra_hours * cls.radians_per_hour + ra_minutes * cls.radians_per_minute +
+                      ra_seconds * cls.radians_per_second)
+        de_radians = (de_degrees * cls.radians_per_degree + de_minutes * cls.radians_per_arcmin +
+                      de_seconds * cls.radians_per_arcsec) * de_multiplier
+        return cls.from_celestial_radians(ra_radians, de_radians)
+
+    def __str__(self):
+        return f'({', '.join([str(e) for e in self.value.tolist()])})'  #str(self.value)
+
 
 
 
@@ -27,7 +57,7 @@ class CatalogStar:
         self.visual_magnitude = visual_magnitude
 
     def __str__(self):
-        return f"{self.identifier} {self.name} {self.visual_magnitude}"
+        return f"{self.identifier}|{self.name}|{self.visual_magnitude}"
 
 
 class Parser:
@@ -45,7 +75,8 @@ class Parser:
         ra_minutes_end = 79
         ra_seconds_start = 80
         ra_seconds_end = 83
-        de_degrees_start = 84
+        de_sign = 84
+        de_degrees_start = 85
         de_degrees_end = 86
         de_minutes_start = 87
         de_minutes_end = 88
@@ -58,10 +89,22 @@ class Parser:
         self.catalog_file = "./assets/catalog"
 
     def parse(self):
+        ori_prefixes = ["Eps", "Gam", "Del", "Alp", "Bet"]#["Alp", "Bet", "Gam", "Del", "Eps", "Kap", "Zet"]
+        ori_names = [p + " Cas" for p in ori_prefixes]
+        ori_stars = set()
         with open(self.catalog_file, 'r') as file:
             for line in file:
                 star = self.parse_catalog_line(line)
-                print(star)
+                #for o_n in ori_names:
+                #    if star is not None:
+                #        if o_n in star.name:
+                #            ori_stars.add(star)
+                if star is not None:
+                    if "Cen" in star.name:
+                        ori_stars.add(star)
+        print("{"+f"{',\n'.join([str(s.position) for s in ori_stars])}"+"}")
+        print(len(ori_stars))
+
 
 
     def parse_catalog_line(self, line: str) -> CatalogStar | None:
@@ -77,13 +120,17 @@ class Parser:
             ra_hours = float(self.substr(line, self.Indices.ra_hours_start, self.Indices.ra_hours_end))
             ra_minutes = float(self.substr(line, self.Indices.ra_minutes_start, self.Indices.ra_minutes_end))
             ra_seconds = float(self.substr(line, self.Indices.ra_seconds_start, self.Indices.ra_seconds_end))
+            de_sign = self.substr(line, self.Indices.de_sign, self.Indices.de_sign)
             de_degrees = float(self.substr(line, self.Indices.de_degrees_start, self.Indices.de_degrees_end))
             de_minutes = float(self.substr(line, self.Indices.de_minutes_start, self.Indices.de_minutes_end))
             de_seconds = float(self.substr(line, self.Indices.de_seconds_start, self.Indices.de_seconds_end))
-            print(ra_hours, ra_minutes, ra_seconds)
-            print(de_degrees, de_minutes, de_seconds)
+            #print(ra_hours, ra_minutes, ra_seconds)
+            #print(f'{de_sign}',de_degrees, de_minutes, de_seconds)
+            v = UnitVector.from_celestial_coordinate(ra_hours, ra_minutes, ra_seconds, de_sign, de_degrees, de_minutes,
+                                                 de_seconds)
+            print(f"{identifier}|{name}|{v}")
 
-            return CatalogStar(identifier, name, None, visual_magnitude)
+            return CatalogStar(identifier, name, v, visual_magnitude)
         except:
             # exception means that entry does not correspond to a star, rather a nebular, galaxy or cluster
             return None
