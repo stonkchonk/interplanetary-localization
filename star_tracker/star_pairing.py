@@ -1,0 +1,96 @@
+from math import pi, cos
+
+from star_tracker.catalog_parser import CatalogStar, Parser
+
+
+class StarPair:
+    def __init__(self, first_id: int, second_id: int, cosine_separation: float):
+        assert first_id != second_id
+        self.first_id = first_id
+        self.second_id = second_id
+        self.cosine_separation = cosine_separation
+
+    def star_id_contained(self, star_id) -> bool:
+        if star_id == self.first_id or star_id == self.second_id:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def sorting_key(star_pair_object: any) -> float:
+        return star_pair_object.cosine_separation
+
+    def __str__(self):
+        return f"StarPair({self.first_id}, {self.second_id}, {self.cosine_separation})"
+
+
+class PairingDeterminer:
+    radians_per_degree = pi / 180
+    max_viable_angle = 24.5 * radians_per_degree
+    min_viable_angle = max_viable_angle / 1000
+    min_viable_cosine = cos(min_viable_angle)
+    max_viable_cosine = cos(max_viable_angle)
+
+    pairings_file = "star_tracker/pairings.py"
+
+    def __init__(self):
+        pass
+
+    def determine_pairings(self, catalog_stars: dict[int, CatalogStar]) -> list[StarPair]:
+        viable_star_pairs = []
+        star_ids = set(catalog_stars.keys())
+        print("determine all possible pairing tuples")
+        pairing_tuples = self.pairing_tuples(star_ids)
+        print("determine viable pairs")
+        for pairing_tuple in pairing_tuples:
+            first_id, second_id = pairing_tuple
+            first_star, second_star = catalog_stars.get(first_id), catalog_stars.get(second_id)
+            cosine_separation = first_star.position.dot_product(second_star.position)
+            separation_viable = self.min_viable_cosine >= cosine_separation >= self.max_viable_cosine
+            if separation_viable:
+                viable_star_pairs.append(StarPair(first_id, second_id, cosine_separation))
+        return viable_star_pairs
+
+    def generate_pairing_file(self, visible_star_pairs: list[StarPair]):
+        file_str = "from star_tracker.star_pairing import StarPair\n\n"
+        file_str += "pairings = {\n"
+        for idx, star_pair in enumerate(visible_star_pairs):
+            file_str += f"\t{idx}: {str(star_pair)},\n"
+        file_str += "}\n"
+        with open(self.pairings_file, "w") as f:
+            f.write(file_str)
+
+    @staticmethod
+    def pairing_tuples(indices: set[int]) -> set[tuple[int, int]]:
+        pairs = set()
+        for idx in indices:
+            indices_without_idx = indices - {idx}
+            for jdx in indices_without_idx:
+                pair = (idx, jdx)
+                flipped = (jdx, idx)
+                if pair not in pairs and flipped not in pairs:
+                    pairs.add(pair)
+                    if len(pairs) % 1000000 == 0:
+                        print(f"Current pairing tuples: {len(pairs)}")
+        return pairs
+
+
+
+
+
+if __name__ == "__main__":
+    catalog_stars_dict = Parser().parse()
+    stars_to_remove = []
+    for identifier in catalog_stars_dict.keys():
+        star = catalog_stars_dict.get(identifier)
+        if star.visual_magnitude > 5.0:
+            stars_to_remove.append(identifier)
+    for identifier in stars_to_remove:
+        del catalog_stars_dict[identifier]
+    print(len(catalog_stars_dict))
+    pd = PairingDeterminer()
+    pairings = pd.determine_pairings(catalog_stars_dict)
+    pairings.sort(key=StarPair.sorting_key)
+    print(len(pairings))
+    pd.generate_pairing_file(pairings)
+

@@ -4,3 +4,4 @@ venv
 __pycache__/
 *.png
 test.py
+star_tracker/pairings.py

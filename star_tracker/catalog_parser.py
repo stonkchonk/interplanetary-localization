@@ -1,6 +1,7 @@
 import numpy as np
 from math import sin, cos, pi
 
+
 class UnitVector:
 
     radians_per_degree = pi / 180
@@ -43,8 +44,11 @@ class UnitVector:
                       de_seconds * cls.radians_per_arcsec) * de_multiplier
         return cls.from_celestial_radians(ra_radians, de_radians)
 
+    def dot_product(self, other_unit_vector: any) -> np.float64:
+        return np.dot(self.value, other_unit_vector.value)
+
     def __str__(self):
-        return f'({', '.join([str(e) for e in self.value.tolist()])})'  #str(self.value)
+        return f'({', '.join([str(e) for e in self.value.tolist()])})'
 
 
 
@@ -57,7 +61,7 @@ class CatalogStar:
         self.visual_magnitude = visual_magnitude
 
     def __str__(self):
-        return f"{self.identifier}|{self.name}|{self.visual_magnitude}"
+        return f"{self.identifier}|{self.name}|{self.visual_magnitude}|{str(self.position)}"
 
 
 class Parser:
@@ -88,24 +92,14 @@ class Parser:
     def __init__(self):
         self.catalog_file = "./assets/catalog"
 
-    def parse(self):
-        ori_prefixes = ["Eps", "Gam", "Del", "Alp", "Bet"]#["Alp", "Bet", "Gam", "Del", "Eps", "Kap", "Zet"]
-        ori_names = [p + " Cas" for p in ori_prefixes]
-        ori_stars = set()
+    def parse(self) -> dict[int, CatalogStar]:
+        catalog_stars = {}
         with open(self.catalog_file, 'r') as file:
             for line in file:
                 star = self.parse_catalog_line(line)
-                #for o_n in ori_names:
-                #    if star is not None:
-                #        if o_n in star.name:
-                #            ori_stars.add(star)
                 if star is not None:
-                    if "Cen" in star.name:
-                        ori_stars.add(star)
-        print("{"+f"{',\n'.join([str(s.position) for s in ori_stars])}"+"}")
-        print(len(ori_stars))
-
-
+                    catalog_stars[star.identifier] = star
+        return catalog_stars
 
     def parse_catalog_line(self, line: str) -> CatalogStar | None:
         try:
@@ -114,7 +108,7 @@ class Parser:
             if len(name) < 1:
                 # use HD catalog number as name
                 name = "HD" + self.substr(line, self.Indices.hd_num_start, self.Indices.hd_num_end)
-            name = name.replace("    ", " ")
+            name = name.replace("    ", " ").replace("  ", " ")
             visual_magnitude = float(self.substr(line, self.Indices.vmag_start, self.Indices.vmag_end))
 
             ra_hours = float(self.substr(line, self.Indices.ra_hours_start, self.Indices.ra_hours_end))
@@ -124,17 +118,12 @@ class Parser:
             de_degrees = float(self.substr(line, self.Indices.de_degrees_start, self.Indices.de_degrees_end))
             de_minutes = float(self.substr(line, self.Indices.de_minutes_start, self.Indices.de_minutes_end))
             de_seconds = float(self.substr(line, self.Indices.de_seconds_start, self.Indices.de_seconds_end))
-            #print(ra_hours, ra_minutes, ra_seconds)
-            #print(f'{de_sign}',de_degrees, de_minutes, de_seconds)
-            v = UnitVector.from_celestial_coordinate(ra_hours, ra_minutes, ra_seconds, de_sign, de_degrees, de_minutes,
-                                                 de_seconds)
-            print(f"{identifier}|{name}|{v}")
-
-            return CatalogStar(identifier, name, v, visual_magnitude)
+            position_vector = UnitVector.from_celestial_coordinate(ra_hours, ra_minutes, ra_seconds,
+                                                                   de_sign, de_degrees, de_minutes, de_seconds)
+            return CatalogStar(identifier, name, position_vector, visual_magnitude)
         except:
             # exception means that entry does not correspond to a star, rather a nebular, galaxy or cluster
             return None
-
 
 
     @staticmethod
@@ -144,4 +133,7 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    parser.parse()
+    stars = parser.parse()
+    for star in stars:
+        print(star)
+    print(len(stars))
