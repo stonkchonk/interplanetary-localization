@@ -51,8 +51,6 @@ class UnitVector:
         return f'({', '.join([str(e) for e in self.value.tolist()])})'
 
 
-
-
 class CatalogStar:
     def __init__(self, identifier: int, name: str, position: UnitVector, visual_magnitude: float):
         self.identifier = identifier

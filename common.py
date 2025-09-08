@@ -32,7 +32,9 @@ class Params:
     # keyword variables, values
     exposure_comp_var = "ExposureComp"
     photo_mode_var = "PhotoMode"
+    star_magnitude_limit = "StarMagnLimit"
     default_photo_mode_val = "1"
+    default_star_magnitude_limit: float = 7
 
     # se commands
     get_cmd = "Get"
@@ -101,4 +103,9 @@ class Code:
     @staticmethod
     def au_to_km(length: float) -> float:
         return length * Params.astronomical_unit_km
+
+    @staticmethod
+    def euclidean_distance(point1: tuple[float, float], point2: tuple[float, float]) -> float:
+        return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
 

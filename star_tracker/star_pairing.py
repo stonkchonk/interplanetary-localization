@@ -3,7 +3,7 @@ from math import pi, cos
 from star_tracker.catalog_parser import CatalogStar, Parser
 
 
-class StarPair:
+class CatalogStarPair:
     def __init__(self, first_id: int, second_id: int, cosine_separation: float):
         assert first_id != second_id
         self.first_id = first_id
@@ -36,7 +36,7 @@ class PairingDeterminer:
     def __init__(self):
         pass
 
-    def determine_pairings(self, catalog_stars: dict[int, CatalogStar]) -> list[StarPair]:
+    def determine_pairings(self, catalog_stars: dict[int, CatalogStar]) -> list[CatalogStarPair]:
         viable_star_pairs = []
         star_ids = set(catalog_stars.keys())
         print("determine all possible pairing tuples")
@@ -48,15 +48,15 @@ class PairingDeterminer:
             cosine_separation = first_star.position.dot_product(second_star.position)
             separation_viable = self.min_viable_cosine >= cosine_separation >= self.max_viable_cosine
             if separation_viable:
-                viable_star_pairs.append(StarPair(first_id, second_id, cosine_separation))
+                viable_star_pairs.append(CatalogStarPair(first_id, second_id, cosine_separation))
         return viable_star_pairs
 
-    def generate_pairing_file(self, visible_star_pairs: list[StarPair]):
+    def generate_pairing_file(self, visible_star_pairs: list[CatalogStarPair]):
         file_str = "from star_tracker.star_pairing import StarPair\n\n"
-        file_str += "pairings = {\n"
+        file_str += "pairings = [\n"
         for idx, star_pair in enumerate(visible_star_pairs):
-            file_str += f"\t{idx}: {str(star_pair)},\n"
-        file_str += "}\n"
+            file_str += f"\t{str(star_pair)},\n"
+        file_str += "]\n"
         with open(self.pairings_file, "w") as f:
             f.write(file_str)
 
@@ -75,9 +75,6 @@ class PairingDeterminer:
         return pairs
 
 
-
-
-
 if __name__ == "__main__":
     catalog_stars_dict = Parser().parse()
     stars_to_remove = []
@@ -90,7 +87,7 @@ if __name__ == "__main__":
     print(len(catalog_stars_dict))
     pd = PairingDeterminer()
     pairings = pd.determine_pairings(catalog_stars_dict)
-    pairings.sort(key=StarPair.sorting_key)
+    pairings.sort(key=CatalogStarPair.sorting_key)
     print(len(pairings))
     pd.generate_pairing_file(pairings)
 

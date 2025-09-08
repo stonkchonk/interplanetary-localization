@@ -181,16 +181,17 @@ class FileController:
         return image_dict
 
 
-
 class VirtualCamera:
     exposure_comp_step = 0.25
 
-    def __init__(self, name: str, field_of_view: float, exposure_comp: float):
+    def __init__(self, name: str, field_of_view: float, exposure_comp: float,
+                 star_magnitude_limit: float = Params.default_star_magnitude_limit):
         assert field_of_view <= 120
         assert exposure_comp % self.exposure_comp_step == 0.0
         self.name = name
         self.field_of_view = field_of_view
         self.exposure_comp = exposure_comp
+        self.star_magnitude_limit = star_magnitude_limit
 
     def _set_fov(self):
         WindowController.enter_command_procedure(f"{Params.fov_cmd} {self.field_of_view}")
@@ -206,6 +207,14 @@ class VirtualCamera:
     def update_exposure_comp(self, exposure_comp: float):
         assert exposure_comp % self.exposure_comp_step == 0.0
         self._set_exposure_comp()
+
+    def _set_star_magnitude_limit(self):
+        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.star_magnitude_limit} {self.star_magnitude_limit}")
+
+    def update_star_magnitude_limit(self, star_magnitude_limit: float):
+        assert -10 <= star_magnitude_limit <= 10
+        self.star_magnitude_limit = star_magnitude_limit
+        self._set_star_magnitude_limit()
 
     def set_position(self, dist_au: float, right_ascension: float, declination: float):
         set_position_script = Script.set_position_script(dist_au, declination, right_ascension)
@@ -251,10 +260,9 @@ class VirtualCamera:
     def setup(self):
         self._set_fov()
         self._set_exposure_comp()
+        self._set_star_magnitude_limit()
         print(f"Setup of virtual camera \"{self.name}\" completed.")
 
 
 if __name__ == "__main__":
     WindowController.initial_setup()
-    star_cam = VirtualCamera("Star Cam", 92, -13.0)
-    star_cam.setup()
