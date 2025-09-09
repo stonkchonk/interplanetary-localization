@@ -21,12 +21,12 @@ class CatalogStarPair:
         return star_pair_object.cosine_separation
 
     def __str__(self):
-        return f"StarPair({self.first_id}, {self.second_id}, {self.cosine_separation})"
+        return f"CatalogStarPair({self.first_id}, {self.second_id}, {self.cosine_separation})"
 
 
 class PairingDeterminer:
     radians_per_degree = pi / 180
-    max_viable_angle = 24.5 * radians_per_degree
+    max_viable_angle = 21.0 * radians_per_degree
     min_viable_angle = max_viable_angle / 1000
     min_viable_cosine = cos(min_viable_angle)
     max_viable_cosine = cos(max_viable_angle)
@@ -52,7 +52,7 @@ class PairingDeterminer:
         return viable_star_pairs
 
     def generate_pairing_file(self, visible_star_pairs: list[CatalogStarPair]):
-        file_str = "from star_tracker.star_pairing import StarPair\n\n"
+        file_str = "from star_tracker.star_pairing import CatalogStarPair\n\n"
         file_str += "pairings = [\n"
         for idx, star_pair in enumerate(visible_star_pairs):
             file_str += f"\t{str(star_pair)},\n"
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     stars_to_remove = []
     for identifier in catalog_stars_dict.keys():
         star = catalog_stars_dict.get(identifier)
-        if star.visual_magnitude > 5.0:
+        if star.visual_magnitude > 3.6:
             stars_to_remove.append(identifier)
     for identifier in stars_to_remove:
         del catalog_stars_dict[identifier]

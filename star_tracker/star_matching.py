@@ -18,7 +18,7 @@ class StarMatcher:
 
 if __name__ == "__main__":
     matcher = StarMatcher(pairings)
-    sp = CatalogStarPair(1, 2, 0.9414)
+    sp = CatalogStarPair(1, 2, 0.9961255695664429)
     match = matcher.determine_best_fit(sp)
     print(match)
 
