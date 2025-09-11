@@ -44,11 +44,15 @@ class UnitVector:
                       de_seconds * cls.radians_per_arcsec) * de_multiplier
         return cls.from_celestial_radians(ra_radians, de_radians)
 
+    @classmethod
+    def from_array(cls, unit_vector_array: list[float]):
+        return cls(np.array(unit_vector_array))
+
     def dot_product(self, other_unit_vector: any) -> np.float64:
         return np.dot(self.value, other_unit_vector.value)
 
     def __str__(self):
-        return f'({', '.join([str(e) for e in self.value.tolist()])})'
+        return f'UnitVector.from_array([{', '.join([str(e) for e in self.value.tolist()])}])'
 
 
 class CatalogStar:
@@ -59,7 +63,7 @@ class CatalogStar:
         self.visual_magnitude = visual_magnitude
 
     def __str__(self):
-        return f"{self.identifier}|{self.name}|{self.visual_magnitude}|{str(self.position)}"
+        return f"CatalogStar({self.identifier}, \"{self.name}\", {self.position}, {self.visual_magnitude})"
 
 
 class Parser:
@@ -87,17 +91,32 @@ class Parser:
         vmag_start = 103
         vmag_end = 107
 
+    catalog_dict_file = "star_tracker/catalog_dict.py"
+
     def __init__(self):
         self.catalog_file = "./assets/catalog"
+        self.catalog_dict: dict[int, CatalogStar] | None = None
 
-    def parse(self) -> dict[int, CatalogStar]:
+    def parse(self):
         catalog_stars = {}
         with open(self.catalog_file, 'r') as file:
             for line in file:
                 star = self.parse_catalog_line(line)
                 if star is not None:
                     catalog_stars[star.identifier] = star
-        return catalog_stars
+        self.catalog_dict = catalog_stars
+
+    def generate_catalog_dict_file(self):
+        file_str = "from star_tracker.catalog_parser import CatalogStar, UnitVector\n"
+        file_str += "import numpy as np\n\n"
+        file_str += "catalog_dict = {\n"
+        for idx in self.catalog_dict.keys():
+            catalog_star = self.catalog_dict.get(idx)
+            file_str += f"\t{idx}: {str(catalog_star)},\n"
+        file_str = file_str[:-2]
+        file_str += "\n}\n"
+        with open(self.catalog_dict_file, "w") as f:
+            f.write(file_str)
 
     def parse_catalog_line(self, line: str) -> CatalogStar | None:
         try:
@@ -123,7 +142,6 @@ class Parser:
             # exception means that entry does not correspond to a star, rather a nebular, galaxy or cluster
             return None
 
-
     @staticmethod
     def substr(line: str, start_byte: int, end_byte: int) -> str:
         return line[start_byte - 1: end_byte].strip()
@@ -131,7 +149,8 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    stars = parser.parse()
-    for star in stars:
+    parser.parse()
+    for star in parser.catalog_dict:
         print(star)
-    print(len(stars))
+    print(len(parser.catalog_dict))
+    parser.generate_catalog_dict_file()

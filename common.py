@@ -97,6 +97,10 @@ class Code:
         return angle_deg * math.pi / 180
 
     @staticmethod
+    def rad_to_deg(angle_rad: float) -> float:
+        return angle_rad * 180 / math.pi
+
+    @staticmethod
     def km_to_au(length: float) -> float:
         return length / Params.astronomical_unit_km
 
@@ -107,5 +111,13 @@ class Code:
     @staticmethod
     def euclidean_distance(point1: tuple[float, float], point2: tuple[float, float]) -> float:
         return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
+    @staticmethod
+    def angle_to_cosine_separation(angle_deg: float) -> float:
+        return math.cos(Code.deg_to_rad(angle_deg))
+
+    @staticmethod
+    def cosine_separation_to_angle(cosine_separation: float) -> float:
+        return Code.rad_to_deg(math.acos(cosine_separation))
 
 

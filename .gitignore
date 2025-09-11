@@ -5,3 +5,4 @@ __pycache__/
 *.png
 test.py
 star_tracker/pairings.py
+star_tracker/catalog_dict.py
