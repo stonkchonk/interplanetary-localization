@@ -1,6 +1,7 @@
 from math import pi, cos
 
-from star_tracker.catalog_parser import CatalogStar, Parser
+from star_tracker.catalog_parser import CatalogStar
+from star_tracker.catalog_dict import catalog_dict
 
 
 class CatalogStarPair:
@@ -76,7 +77,7 @@ class PairingDeterminer:
 
 
 if __name__ == "__main__":
-    catalog_stars_dict = Parser().parse()
+    catalog_stars_dict = catalog_dict
     stars_to_remove = []
     for identifier in catalog_stars_dict.keys():
         star = catalog_stars_dict.get(identifier)

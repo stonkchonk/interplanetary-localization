@@ -1,3 +1,5 @@
+import numpy as np
+
 from common import Code
 from star_tracker.star_pairing import CatalogStarPair
 from star_tracker.pairings import pairings
@@ -32,6 +34,37 @@ class StarMatcher:
             res = f"{first.name} <-> {second.name} \t\t {Code.cosine_separation_to_angle(candidate.cosine_separation)}"
             print(res)
 
+    def matcher_matrix(self, observed_star_pair_dict: dict[int, ObservedStarPair]):
+        assert len(observed_star_pair_dict) == 6
+        candidate_pair_array_dict = {}
+        for identifier in observed_star_pair_dict.keys():
+            observed_star_pair = observed_star_pair_dict.get(identifier)
+            candidate_pair_array = self.determine_candidate_pair_array(observed_star_pair, 0.1)
+            candidate_pair_array_dict[identifier] = candidate_pair_array
+
+        match_matrix = np.zeros((len(catalog_dict), 6))
+
+        for star_id in catalog_dict.keys():
+            for observed_pair_id in observed_star_pair_dict.keys():
+                candidate_pair_array = candidate_pair_array_dict.get(observed_pair_id)
+
+                star_id_in_candidate_pairs = False
+                for candidate_pair in candidate_pair_array:
+                    contains_star_id = candidate_pair.star_id_contained(star_id)
+                    if contains_star_id:
+                        star_id_in_candidate_pairs = True
+                        break
+                if star_id_in_candidate_pairs:
+                    match_matrix[star_id][observed_pair_id - 1] = 1
+        return match_matrix
+
+
+
+
+        match_matrix[2][1] = 1
+        print(match_matrix)
+
+
 
 
 if __name__ == "__main__":
@@ -39,9 +72,18 @@ if __name__ == "__main__":
     sp = CatalogStarPair(1, 2, 0.9963587420360999)
     #match = matcher.determine_best_fit(sp)
     #print(match)
-    observed_star_pair = ObservedStarPair(0.9963587420360999)
+    observed_star_pair = ObservedStarPair(0.9970864329762227)
     candidate_pairs = matcher.determine_candidate_pair_array(observed_star_pair, 0.1)
     matcher.resolve_candidate_pairs(candidate_pairs)
+    observed_star_pair_dict = {
+        1: observed_star_pair,
+        2: observed_star_pair,
+        3: observed_star_pair,
+        4: observed_star_pair,
+        5: observed_star_pair,
+        6: observed_star_pair,
+    }
+    matcher.matcher_matrix(observed_star_pair_dict)
 
 
 
