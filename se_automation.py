@@ -4,7 +4,6 @@ import time
 import shutil
 from typing import Literal
 
-import numpy as np
 import pyautogui
 import subprocess
 import cv2
@@ -116,6 +115,16 @@ class WindowController:
         pyautogui.click(location[0], location[1])
 
     @staticmethod
+    def enter_magnitude_value(magnitude: float):
+        WindowController.move(Params.bottom_menu_pos)
+        time.sleep(Params.sleep_normal)
+        WindowController.move_click(Params.bottom_menu_input)
+        pyautogui.hotkey(Params.backspace)
+        pyautogui.typewrite(str(magnitude))
+        pyautogui.hotkey(Params.enter)
+        WindowController.move(Params.neutral_pos)
+
+    @staticmethod
     def _is_terminal_open() -> bool:
         pos = WindowController._locate_close_icon()
         if pos is None:
@@ -209,7 +218,8 @@ class VirtualCamera:
         self._set_exposure_comp()
 
     def _set_star_magnitude_limit(self):
-        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.star_magnitude_limit} {self.star_magnitude_limit}")
+        #WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.star_magnitude_limit} {self.star_magnitude_limit}")
+        WindowController.enter_magnitude_value(self.star_magnitude_limit)
 
     def update_star_magnitude_limit(self, star_magnitude_limit: float):
         assert -10 <= star_magnitude_limit <= 10

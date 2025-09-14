@@ -44,19 +44,24 @@ class ObservedStarPair:
 
 class StarImager:
 
-    matching_candidate_ids = [1, 2, 3, 4]
-    pairing_ids = [1, 2, 3, 4, 5, 6]
-    pair_by_ids = [(1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (3, 4)]
+    matching_candidate_ids = [0, 1, 2, 3]
+    pairing_ids = [0, 1, 2, 3, 4, 5]
+    pair_by_ids = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
 
-    def __init__(self, field_of_view: float):
+    debug_raw_img = "debug_raw_img.png"
+    debug_gray_img = "debug_gray_img.png"
+    debug_mask_img = "debug_mask_img.png"
+    debug_detected_img = "debug_detected_img.png"
+
+    def __init__(self, field_of_view: float, save_debug_images: bool = False):
         self.field_of_view = field_of_view
+        self.save_debug_images = save_debug_images
 
     @staticmethod
     def raw_to_gray(raw_image: np.ndarray) -> np.ndarray:
         return cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
 
-    @staticmethod
-    def raw_to_mask(raw_image: np.ndarray) -> np.ndarray:
+    def raw_to_mask(self, raw_image: np.ndarray) -> np.ndarray:
         """
         :param raw_image: Raw image of the sun in BGR
         :return: Mask image of relevant 'solar disc' pixels.
@@ -64,8 +69,10 @@ class StarImager:
         assert raw_image.shape == Params.width_height + (3,)
         # transform image to grayscale
         gray_image = StarImager.raw_to_gray(raw_image)
+        if self.save_debug_images:
+            Code.save_debug_image(self.debug_gray_img, gray_image)
         # turn gray image to mask using thresholding
-        _, mask = cv2.threshold(gray_image, 120, 255, cv2.THRESH_BINARY)
+        _, mask = cv2.threshold(gray_image, 75, 255, cv2.THRESH_BINARY)
         return mask
 
     @staticmethod
@@ -91,15 +98,28 @@ class StarImager:
         print(len(viable_stars))
         return viable_stars
 
-    def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]]:
+    def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]] | None:
         mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
+        if self.save_debug_images:
+            Code.save_debug_image(self.debug_mask_img, mask_image)
         keypoints = self.determine_keypoints(mask_image)
         viable_stars = self.viable_stars_from_keypoints(keypoints)
         viable_stars.sort(key=ObservedStar.sort_by_pixel_count, reverse=True)
 
+        if self.save_debug_images:
+            blank = np.zeros((1, 1))
+            detected_img = cv2.drawKeypoints(
+                mask_image, keypoints, blank, (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
+            )
+            Code.save_debug_image(self.debug_detected_img, detected_img)
+
         matching_candidate_stars = {}
-        for identifier in self.matching_candidate_ids:
-            matching_candidate_stars[identifier] = viable_stars[identifier - 1]
+        try:
+            for identifier in self.matching_candidate_ids:
+                matching_candidate_stars[identifier] = viable_stars[identifier]
+        except:
+            print("Not enough stars detected.")
+            return None
 
         candidate_pairings = {}
         for idx, identifier in enumerate(self.pairing_ids):
@@ -115,7 +135,7 @@ class StarImager:
 
 
 if __name__ == "__main__":
-    WindowController.simple_setup()
+    WindowController.initial_setup()
     field_of_view = 21
     exposure_comp = 2
     star_magnitude_limit = 5
@@ -126,7 +146,7 @@ if __name__ == "__main__":
     si = StarImager(field_of_view)
 
     candidates, pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
-    print(candidates, pairings)
+    #print(candidates, pairings)
 
     for c in candidates.values():
         print(str(c))

@@ -27,15 +27,13 @@ class CatalogStarPair:
 
 class PairingDeterminer:
     radians_per_degree = pi / 180
-    max_viable_angle = 21.0 * radians_per_degree
-    min_viable_angle = max_viable_angle / 1000
-    min_viable_cosine = cos(min_viable_angle)
-    max_viable_cosine = cos(max_viable_angle)
-
     pairings_file = "star_tracker/pairings.py"
 
-    def __init__(self):
-        pass
+    def __init__(self, max_viable_angle_deg: float, min_viable_angle_deg: float):
+        max_viable_angle_rad = max_viable_angle_deg * self.radians_per_degree
+        min_viable_angle_rad = min_viable_angle_deg * self.radians_per_degree
+        self.min_viable_cosine = cos(min_viable_angle_rad)
+        self.max_viable_cosine = cos(max_viable_angle_rad)
 
     def determine_pairings(self, catalog_stars: dict[int, CatalogStar]) -> list[CatalogStarPair]:
         viable_star_pairs = []
@@ -81,12 +79,13 @@ if __name__ == "__main__":
     stars_to_remove = []
     for identifier in catalog_stars_dict.keys():
         star = catalog_stars_dict.get(identifier)
-        if star.visual_magnitude > 3.6:
+        if star.visual_magnitude > 5.0:
             stars_to_remove.append(identifier)
     for identifier in stars_to_remove:
         del catalog_stars_dict[identifier]
     print(len(catalog_stars_dict))
-    pd = PairingDeterminer()
+    max_fov = 17.5
+    pd = PairingDeterminer(max_fov, max_fov / 1000)
     pairings = pd.determine_pairings(catalog_stars_dict)
     pairings.sort(key=CatalogStarPair.sorting_key)
     print(len(pairings))

@@ -1,6 +1,9 @@
 # common properties and values
 import math
 
+import cv2
+import numpy as np
+
 
 class Params:
     # window settings and positions
@@ -8,6 +11,8 @@ class Params:
     top_corner = 0, 0
     width_height = 1000, 1000
     neutral_pos = 50, 50
+    bottom_menu_pos = 900, 999
+    bottom_menu_input = 900, 985
     click_correction = 4, 4
     norm_radius = 499.5
     center_point = norm_radius, norm_radius
@@ -28,11 +33,15 @@ class Params:
     decrease_exposure = ","
     change_camera_mode = "v"
     enter = "enter"
+    delete = "delete"
+    backspace = "backspace"
 
     # keyword variables, values
     exposure_comp_var = "ExposureComp"
     photo_mode_var = "PhotoMode"
     star_magnitude_limit = "StarMagnLimit"
+    galaxy_magnitude_limit = "GalaxyMagnLimit"
+    planet_magnitude_limit = "PlanetMagnLimit"
     default_photo_mode_val = "1"
     default_star_magnitude_limit: float = 7
 
@@ -64,8 +73,9 @@ class Params:
     ]
 
     # directories and files
-    assets_dir = "assets/"
+    assets_dir = "/home/fred/Documents/Code/interplanetary-localization/assets/"
     se_dir = "/home/fred/.steam/steam/steamapps/common/SpaceEngine/"
+    debug_images_dir = "/home/fred/Documents/Code/interplanetary-localization/debug/"
     screenshots_dir = se_dir + "screenshots/"
     se_log_file = se_dir + "system/se.log"
     se_catalogs_pak_file = se_dir + "data/catalogs/Catalogs.pak"
@@ -120,4 +130,6 @@ class Code:
     def cosine_separation_to_angle(cosine_separation: float) -> float:
         return Code.rad_to_deg(math.acos(cosine_separation))
 
-
+    @staticmethod
+    def save_debug_image(filename: str, image: np.ndarray):
+        cv2.imwrite(Params.debug_images_dir + filename, image)
