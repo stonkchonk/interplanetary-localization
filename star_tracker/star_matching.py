@@ -100,7 +100,7 @@ if __name__ == "__main__":
     WindowController.initial_setup()
     field_of_view = 17.5
     exposure_comp = 1
-    star_magnitude_limit = 5
+    star_magnitude_limit = 4
     tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
     tracker_cam.setup()
     night_sky_image = tracker_cam.take_screenshot("nightsky")
@@ -123,19 +123,18 @@ if __name__ == "__main__":
     for idx, row in enumerate(matcher_matrix):
         if matcher.first_star_candidate(row):
             first_matches.append(idx)
-        elif matcher.second_star_candidate(row):
+        if matcher.second_star_candidate(row):
             second_matches.append(idx)
-        elif matcher.third_star_candidate(row):
+        if matcher.third_star_candidate(row):
             third_matches.append(idx)
-        elif matcher.fourth_star_candidate(row):
+        if matcher.fourth_star_candidate(row):
             fourth_matches.append(idx)
-        else:
-            pass
+
     match_arrays = [first_matches, second_matches, third_matches, fourth_matches]
     for idx, ma in enumerate(match_arrays):
         print(f"s{idx} matches:")
         for identifier in ma:
-            print(catalog_dict.get(identifier).name)
+            print(f"{identifier}: {catalog_dict.get(identifier).name}")
         print("--------")
 
 

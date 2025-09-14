@@ -79,7 +79,7 @@ if __name__ == "__main__":
     stars_to_remove = []
     for identifier in catalog_stars_dict.keys():
         star = catalog_stars_dict.get(identifier)
-        if star.visual_magnitude > 5.0:
+        if star.visual_magnitude > 4.0:
             stars_to_remove.append(identifier)
     for identifier in stars_to_remove:
         del catalog_stars_dict[identifier]

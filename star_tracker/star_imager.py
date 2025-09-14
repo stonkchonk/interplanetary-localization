@@ -137,8 +137,8 @@ class StarImager:
 if __name__ == "__main__":
     WindowController.initial_setup()
     field_of_view = 21
-    exposure_comp = 2
-    star_magnitude_limit = 5
+    exposure_comp = 0
+    star_magnitude_limit = 4
     tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
     tracker_cam.setup()
     night_sky_image = tracker_cam.take_screenshot("nightsky")
