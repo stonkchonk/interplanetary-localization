@@ -133,3 +133,11 @@ class Code:
     @staticmethod
     def save_debug_image(filename: str, image: np.ndarray):
         cv2.imwrite(Params.debug_images_dir + filename, image)
+
+    @staticmethod
+    def list_exclude_element(original_list: list, exclusion_idx: int) -> list:
+        modified_list = []
+        for idx, element in enumerate(original_list):
+            if idx != exclusion_idx:
+                modified_list.append(element)
+        return modified_list

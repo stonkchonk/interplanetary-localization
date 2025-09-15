@@ -6,6 +6,7 @@ from star_tracker.star_pairing import CatalogStarPair
 from star_tracker.pairings import pairings
 from star_tracker.star_imager import ObservedStarPair, StarImager
 from star_tracker.catalog_dict import catalog_dict
+from star_tracker.neighbors import neighbors
 
 
 class StarMatcher:
@@ -64,15 +65,12 @@ class StarMatcher:
             res = f"{first.name} <-> {second.name} \t\t {Code.cosine_separation_to_angle(candidate.cosine_separation)}"
             print(res)
 
-    def matcher_matrix(self, observed_star_pair_dict: dict[int, ObservedStarPair]):
+    def matcher_matrix(self, observed_star_pair_dict: dict[int, ObservedStarPair]) -> np.ndarray:
         assert len(observed_star_pair_dict) == 6
         candidate_pair_array_dict = {}
         for identifier in observed_star_pair_dict.keys():
             observed_star_pair = observed_star_pair_dict.get(identifier)
             candidate_pair_array = self.determine_candidate_pair_array(observed_star_pair, 0.1)
-            for cp in candidate_pair_array:
-                #print(identifier, str(cp), Code.cosine_separation_to_angle(cp.cosine_separation))
-                pass
             candidate_pair_array_dict[identifier] = candidate_pair_array
 
         match_matrix = np.zeros((len(catalog_dict), 6))
@@ -91,6 +89,41 @@ class StarMatcher:
                     match_matrix[star_id][observed_pair_id] = 1
         return match_matrix
 
+    def determine_matching_quadruple(self, matcher_matrix: np.ndarray) -> tuple[int, int, int, int] | None:
+        first_matches: set[int] = set()
+        second_matches: set[int] = set()
+        third_matches: set[int] = set()
+        fourth_matches: set[int] = set()
+        match_sets = [first_matches, second_matches, third_matches, fourth_matches]
+
+        # put all candidate stars into set of corresponding observed star
+        for row_idx, row_entries in enumerate(matcher_matrix):
+            if matcher.first_star_candidate(row_entries):
+                first_matches.add(row_idx)
+            if matcher.second_star_candidate(row_entries):
+                second_matches.add(row_idx)
+            if matcher.third_star_candidate(row_entries):
+                third_matches.add(row_idx)
+            if matcher.fourth_star_candidate(row_entries):
+                fourth_matches.add(row_idx)
+        print(match_sets)
+        # eliminate all candidate stars which do not have neighbors in all other candidate sets
+        cleared_match_sets = []
+        for set_idx, match_set in enumerate(match_sets):
+            other_sets = Code.list_exclude_element(match_sets, set_idx)
+            stars_to_eliminate_from_match_set = set()
+            for star_id in match_set:
+                neighbor_set = neighbors.get(star_id)
+                for other_set in other_sets:
+                    if len(neighbor_set.intersection(other_set)) < 1:
+                        stars_to_eliminate_from_match_set.add(star_id)
+            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
+            cleared_match_sets.append(cleared_match_set)
+        print(cleared_match_sets)
+        for cms in cleared_match_sets:
+            for identifier in cms:
+                print(f"{identifier}: {catalog_dict.get(identifier).name}")
+            print("---")
 
 
 
@@ -116,6 +149,7 @@ if __name__ == "__main__":
         osp = observed_star_pair_dict.get(k)
         print(k, Code.cosine_separation_to_angle(osp.cosine_separation))
 
+    '''
     first_matches = []
     second_matches = []
     third_matches = []
@@ -136,7 +170,8 @@ if __name__ == "__main__":
         for identifier in ma:
             print(f"{identifier}: {catalog_dict.get(identifier).name}")
         print("--------")
-
+    '''
+    matcher.determine_matching_quadruple(matcher_matrix)
 
 
 

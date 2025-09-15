@@ -28,6 +28,7 @@ class CatalogStarPair:
 class PairingDeterminer:
     radians_per_degree = pi / 180
     pairings_file = "star_tracker/pairings.py"
+    neighbors_file = "star_tracker/neighbors.py"
 
     def __init__(self, max_viable_angle_deg: float, min_viable_angle_deg: float):
         max_viable_angle_rad = max_viable_angle_deg * self.radians_per_degree
@@ -57,6 +58,30 @@ class PairingDeterminer:
             file_str += f"\t{str(star_pair)},\n"
         file_str += "]\n"
         with open(self.pairings_file, "w") as f:
+            f.write(file_str)
+
+    def generate_neighbors_file(self, visible_star_pairs: list[CatalogStarPair]):
+        neighbors_dict: dict[int, set] = {}
+        for star_pair in visible_star_pairs:
+            first_id = star_pair.first_id
+            second_id = star_pair.second_id
+            first_entry = neighbors_dict.get(first_id)
+            second_entry = neighbors_dict.get(second_id)
+            if first_entry is not None:
+                first_entry.add(second_id)
+            else:
+                neighbors_dict[first_id] = {second_id}
+            if second_entry is not None:
+                second_entry.add(first_id)
+            else:
+                neighbors_dict[second_id] = {first_id}
+        file_str = "neighbors = {\n"
+        for star_id in neighbors_dict.keys():
+            neighbor_set = neighbors_dict.get(star_id)
+            file_str += 4*" " + f"{star_id}: {str(neighbor_set)},\n"
+        file_str = file_str[:-2]
+        file_str += "\n}\n"
+        with open(self.neighbors_file, "w") as f:
             f.write(file_str)
 
     @staticmethod
@@ -90,4 +115,5 @@ if __name__ == "__main__":
     pairings.sort(key=CatalogStarPair.sorting_key)
     print(len(pairings))
     pd.generate_pairing_file(pairings)
+    pd.generate_neighbors_file(pairings)
 
