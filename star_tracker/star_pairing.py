@@ -104,12 +104,12 @@ if __name__ == "__main__":
     stars_to_remove = []
     for identifier in catalog_stars_dict.keys():
         star = catalog_stars_dict.get(identifier)
-        if star.visual_magnitude > 4.0:
+        if star.visual_magnitude > 4.2:
             stars_to_remove.append(identifier)
     for identifier in stars_to_remove:
         del catalog_stars_dict[identifier]
     print(len(catalog_stars_dict))
-    max_fov = 17.5
+    max_fov = 22.0
     pd = PairingDeterminer(max_fov, max_fov / 1000)
     pairings = pd.determine_pairings(catalog_stars_dict)
     pairings.sort(key=CatalogStarPair.sorting_key)

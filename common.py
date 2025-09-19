@@ -127,7 +127,7 @@ class Code:
         return math.cos(Code.deg_to_rad(angle_deg))
 
     @staticmethod
-    def cosine_separation_to_angle(cosine_separation: float) -> float:
+    def cosine_separation_to_angle_deg(cosine_separation: float) -> float:
         return Code.rad_to_deg(math.acos(cosine_separation))
 
     @staticmethod

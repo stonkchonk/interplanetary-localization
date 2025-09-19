@@ -51,6 +51,9 @@ class UnitVector:
     def dot_product(self, other_unit_vector: any) -> np.float64:
         return np.dot(self.value, other_unit_vector.value)
 
+    def angular_rad_separation(self, other_unit_vector: any) -> np.float64:
+        return np.arccos(self.dot_product(other_unit_vector))
+
     def __str__(self):
         return f'UnitVector.from_array([{', '.join([str(e) for e in self.value.tolist()])}])'
 

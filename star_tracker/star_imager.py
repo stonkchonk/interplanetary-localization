@@ -47,6 +47,26 @@ class StarImager:
     matching_candidate_ids = [0, 1, 2, 3]
     pairing_ids = [0, 1, 2, 3, 4, 5]
     pair_by_ids = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+    pairing_id_by_pair = {
+        (0, 1): 0,
+        (1, 0): 0,
+        (0, 2): 1,
+        (2, 0): 1,
+        (0, 3): 2,
+        (3, 0): 2,
+        (1, 2): 3,
+        (2, 1): 3,
+        (1, 3): 4,
+        (3, 1): 4,
+        (2, 3): 5,
+        (3, 2): 5,
+    }
+    pairing_ids_of_a_star = {
+        0: [0, 1, 2],
+        1: [0, 3, 4],
+        2: [1, 3, 5],
+        3: [2, 4, 5]
+    }
 
     debug_raw_img = "debug_raw_img.png"
     debug_gray_img = "debug_gray_img.png"
@@ -98,7 +118,7 @@ class StarImager:
         print(len(viable_stars))
         return viable_stars
 
-    def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]] | None:
+    def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]]:
         mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
         if self.save_debug_images:
             Code.save_debug_image(self.debug_mask_img, mask_image)
@@ -136,22 +156,22 @@ class StarImager:
 
 if __name__ == "__main__":
     WindowController.initial_setup()
-    field_of_view = 21
+    field_of_view = 22
     exposure_comp = 0
-    star_magnitude_limit = 4
-    tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
+    magnitude_limit = 4.5
+    tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, magnitude_limit)
     tracker_cam.setup()
     night_sky_image = tracker_cam.take_screenshot("nightsky")
     #gray = StarImager.raw_to_gray(night_sky_image)
     si = StarImager(field_of_view)
 
-    candidates, pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
+    observed_stars, observed_pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
     #print(candidates, pairings)
 
-    for c in candidates.values():
-        print(str(c))
+    for o in observed_stars.values():
+        print(str(o))
 
-    for p in pairings.values():
+    for p in observed_pairings.values():
         print(p.cosine_separation)
 
 

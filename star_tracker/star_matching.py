@@ -11,66 +11,51 @@ from star_tracker.neighbors import neighbors
 
 class StarMatcher:
 
-    s1_match = [1, 1, 1, 0, 0, 0]
-    s2_match = [1, 0, 0, 1, 1, 0]
-    s3_match = [0, 1, 0, 1, 0, 1]
-    s4_match = [0, 0, 1, 0, 1, 1]
-
     def __init__(self, sorted_pairing_catalog: list[CatalogStarPair]):
         self.sorted_pairing_catalog = sorted_pairing_catalog
 
     @staticmethod
-    def _row_match(input_row: any, match_list: list[int]) -> bool:
-        for idx, match in enumerate(match_list):
-            if match == 1 and input_row[idx] == 0:
+    def _row_match(input_row: any, match_relevant_indices: list[int]) -> bool:
+        assert len(match_relevant_indices) == 3
+        for idx in match_relevant_indices:
+            if input_row[idx] == 0:
                 return False
         return True
 
     @staticmethod
     def first_star_candidate(input_row: any) -> bool:
-        return StarMatcher._row_match(input_row, StarMatcher.s1_match)
+        return StarMatcher._row_match(input_row, StarImager.pairing_ids_of_a_star.get(0))
 
     @staticmethod
     def second_star_candidate(input_row: any) -> bool:
-        return StarMatcher._row_match(input_row, StarMatcher.s2_match)
+        return StarMatcher._row_match(input_row, StarImager.pairing_ids_of_a_star.get(1))
 
     @staticmethod
     def third_star_candidate(input_row: any) -> bool:
-        return StarMatcher._row_match(input_row, StarMatcher.s3_match)
+        return StarMatcher._row_match(input_row, StarImager.pairing_ids_of_a_star.get(2))
 
     @staticmethod
     def fourth_star_candidate(input_row: any) -> bool:
-        return StarMatcher._row_match(input_row, StarMatcher.s4_match)
+        return StarMatcher._row_match(input_row, StarImager.pairing_ids_of_a_star.get(3))
 
-    def determine_best_fit(self, star_pair: CatalogStarPair) -> CatalogStarPair | None:
-        current = star_pair.cosine_separation
-        separations_abs_difference_list = [abs(sp.cosine_separation - current) for sp in self.sorted_pairing_catalog]
-        minimum_difference = min(separations_abs_difference_list)
-        min_idx = [idx for idx, ele in enumerate(separations_abs_difference_list) if ele == minimum_difference][0]
-        return self.sorted_pairing_catalog[min_idx]
+    @staticmethod
+    def cosine_separation_in_bounds(measured_cosine_separation: float, supposed_cosine_separation: float, delta_angular_separation_deg: float = 0.1) -> bool:
+        measured_angular_separation = Code.cosine_separation_to_angle_deg(measured_cosine_separation)
+        min_angular_separation = max(measured_angular_separation - delta_angular_separation_deg, 0)
+        max_angular_separation = min(measured_angular_separation + delta_angular_separation_deg, 90)
+        supposed_angular_separation = Code.cosine_separation_to_angle_deg(supposed_cosine_separation)
+        return min_angular_separation <= supposed_angular_separation <= max_angular_separation
 
-    def determine_candidate_pair_array(self, observed_star_pair: ObservedStarPair, delta_angular_separation_deg: float) -> list[CatalogStarPair]:
-        angular_separation_deg = Code.cosine_separation_to_angle(observed_star_pair.cosine_separation)
-        min_angular_separation = max(angular_separation_deg - delta_angular_separation_deg, 0)
-        max_angular_separation = min(angular_separation_deg + delta_angular_separation_deg, 90)
-        min_cosine_separation = Code.angle_to_cosine_separation(min_angular_separation)
-        max_cosine_separation = Code.angle_to_cosine_separation(max_angular_separation)
-        candidate_catalog_pairs = list(filter(lambda pair: max_cosine_separation <= pair.cosine_separation <= min_cosine_separation, pairings))
+    def determine_candidate_pair_array(self, observed_star_pair: ObservedStarPair) -> list[CatalogStarPair]:
+        candidate_catalog_pairs = list(filter(lambda pair: self.cosine_separation_in_bounds(observed_star_pair.cosine_separation, pair.cosine_separation), pairings))
         return candidate_catalog_pairs
-
-    def resolve_candidate_pairs(self, candidate_catalog_pairs: list[CatalogStarPair]):
-        for candidate in candidate_catalog_pairs:
-            first = catalog_dict.get(candidate.first_id)
-            second = catalog_dict.get(candidate.second_id)
-            res = f"{first.name} <-> {second.name} \t\t {Code.cosine_separation_to_angle(candidate.cosine_separation)}"
-            print(res)
 
     def matcher_matrix(self, observed_star_pair_dict: dict[int, ObservedStarPair]) -> np.ndarray:
         assert len(observed_star_pair_dict) == 6
         candidate_pair_array_dict = {}
         for identifier in observed_star_pair_dict.keys():
             observed_star_pair = observed_star_pair_dict.get(identifier)
-            candidate_pair_array = self.determine_candidate_pair_array(observed_star_pair, 0.1)
+            candidate_pair_array = self.determine_candidate_pair_array(observed_star_pair)
             candidate_pair_array_dict[identifier] = candidate_pair_array
 
         match_matrix = np.zeros((len(catalog_dict), 6))
@@ -89,7 +74,34 @@ class StarMatcher:
                     match_matrix[star_id][observed_pair_id] = 1
         return match_matrix
 
-    def determine_matching_quadruple(self, matcher_matrix: np.ndarray) -> tuple[int, int, int, int] | None:
+    @staticmethod
+    def _candidate_has_valid_neighbors(candidate_star_id: int, observed_star_id: int, match_sets: list[set[int]], observed_pairings: dict[int, ObservedStarPair]) -> bool:
+        assert len(match_sets) == 4
+        assert candidate_star_id in match_sets[observed_star_id]
+        assert 0 <= observed_star_id <= 3
+        assert len(observed_pairings) == 6
+
+        other_sets = Code.list_exclude_element(match_sets, observed_star_id)
+        other_observed_star_ids = Code.list_exclude_element(StarImager.matching_candidate_ids, observed_star_id)
+        candidate_star = catalog_dict.get(candidate_star_id)
+        neighbor_set = neighbors.get(candidate_star_id)
+        has_neighbor_in_bounds_in_other_sets = [False for other_set in other_sets]
+        for other_set_idx, other_set in enumerate(other_sets):
+            other_observed_star_id = other_observed_star_ids[other_set_idx]
+            common_star_ids = neighbor_set.intersection(other_set)
+            if len(common_star_ids) < 1:
+                return False
+            has_neighbor_in_bounds = False
+            measured_cosine_separation = observed_pairings.get(StarImager.pairing_id_by_pair.get((observed_star_id, other_observed_star_id))).cosine_separation
+            for common_star_id in common_star_ids:
+                common_star = catalog_dict.get(common_star_id)
+                supposed_cosine_separation = common_star.position.dot_product(candidate_star.position)
+                if StarMatcher.cosine_separation_in_bounds(measured_cosine_separation, supposed_cosine_separation):
+                    has_neighbor_in_bounds = True
+            has_neighbor_in_bounds_in_other_sets[other_set_idx] = has_neighbor_in_bounds
+        return all(has_neighbor_in_bounds_in_other_sets)
+
+    def determine_matching_quadruple(self, matcher_matrix: np.ndarray, observed_pairings:  dict[int, ObservedStarPair]) -> tuple[int, int, int, int] | None:
         first_matches: set[int] = set()
         second_matches: set[int] = set()
         third_matches: set[int] = set()
@@ -106,9 +118,28 @@ class StarMatcher:
                 third_matches.add(row_idx)
             if matcher.fourth_star_candidate(row_entries):
                 fourth_matches.add(row_idx)
-        print(match_sets)
+        for ms in match_sets:
+            for star_id in ms:
+                print(f"{star_id}: {catalog_dict.get(star_id).name}")
+            print("------")
+
         # eliminate all candidate stars which do not have neighbors in all other candidate sets
         cleared_match_sets = []
+        for set_idx, match_set in enumerate(match_sets):
+            stars_to_eliminate_from_match_set = set()
+            for star_id in match_set:
+                has_valid_neighborhood = self._candidate_has_valid_neighbors(star_id, set_idx, match_sets, observed_pairings)
+                if not has_valid_neighborhood:
+                    stars_to_eliminate_from_match_set.add(star_id)
+            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
+            cleared_match_sets.append(cleared_match_set)
+        print("\n\n\n")
+        for cms in cleared_match_sets:
+            for identifier in cms:
+                print(f"{identifier}: {catalog_dict.get(identifier).name}")
+            print("---")
+        print("-----------")
+        '''
         for set_idx, match_set in enumerate(match_sets):
             other_sets = Code.list_exclude_element(match_sets, set_idx)
             stars_to_eliminate_from_match_set = set()
@@ -124,30 +155,31 @@ class StarMatcher:
             for identifier in cms:
                 print(f"{identifier}: {catalog_dict.get(identifier).name}")
             print("---")
-
+        print("-----------")
+        '''
 
 
 
 
 if __name__ == "__main__":
     WindowController.initial_setup()
-    field_of_view = 17.5
+    field_of_view = 18
     exposure_comp = 1
-    star_magnitude_limit = 4
+    star_magnitude_limit = 4.1
     tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
     tracker_cam.setup()
     night_sky_image = tracker_cam.take_screenshot("nightsky")
     si = StarImager(field_of_view, True)
     matcher = StarMatcher(pairings)
 
-    candidates, observed_star_pair_dict = si.determine_four_stars_and_their_pairings(night_sky_image)
-    matcher_matrix = matcher.matcher_matrix(observed_star_pair_dict)
+    observed_stars, observed_pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
+    matcher_matrix = matcher.matcher_matrix(observed_pairings)
 
-    for k in candidates.keys():
-        print(k, str(candidates.get(k)))
-    for k in observed_star_pair_dict.keys():
-        osp = observed_star_pair_dict.get(k)
-        print(k, Code.cosine_separation_to_angle(osp.cosine_separation))
+    for k in observed_stars.keys():
+        print(k, str(observed_stars.get(k)))
+    for k in observed_pairings.keys():
+        osp = observed_pairings.get(k)
+        print(k, Code.cosine_separation_to_angle_deg(osp.cosine_separation))
 
     '''
     first_matches = []
@@ -171,7 +203,7 @@ if __name__ == "__main__":
             print(f"{identifier}: {catalog_dict.get(identifier).name}")
         print("--------")
     '''
-    matcher.determine_matching_quadruple(matcher_matrix)
+    matcher.determine_matching_quadruple(matcher_matrix, observed_pairings)
 
 
 
