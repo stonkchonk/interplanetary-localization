@@ -62,4 +62,4 @@ class OptimizationAnalysis:
 
 if __name__ == "__main__":
     #OptimizationAnalysis.create_magnitude_barchart()
-    OptimizationAnalysis.create_star_density_graphic(4.1, 22.0)
+    OptimizationAnalysis.create_star_density_graphic(4.1, 17.0)

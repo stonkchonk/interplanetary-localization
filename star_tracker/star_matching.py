@@ -1,18 +1,22 @@
+import cv2
 import numpy as np
 
 from common import Code, Params
 from se_automation import WindowController, VirtualCamera
+from star_tracker.catalog_parser import UnitVector
 from star_tracker.star_pairing import CatalogStarPair
 from star_tracker.pairings import pairings
-from star_tracker.star_imager import ObservedStarPair, StarImager
+from star_tracker.star_imager import ObservedStarPair, StarImager, ObservedStar
 from star_tracker.catalog_dict import catalog_dict
 from star_tracker.neighbors import neighbors
 
 
 class StarMatcher:
 
-    def __init__(self, sorted_pairing_catalog: list[CatalogStarPair]):
-        self.sorted_pairing_catalog = sorted_pairing_catalog
+    def __init__(self, observed_stars: dict[int, ObservedStar], observed_pairings: dict[int, ObservedStarPair]):
+        self.observed_stars = observed_stars
+        self.observed_pairings = observed_pairings
+
 
     @staticmethod
     def _row_match(input_row: any, match_relevant_indices: list[int]) -> bool:
@@ -101,7 +105,7 @@ class StarMatcher:
             has_neighbor_in_bounds_in_other_sets[other_set_idx] = has_neighbor_in_bounds
         return all(has_neighbor_in_bounds_in_other_sets)
 
-    def determine_matching_quadruple(self, matcher_matrix: np.ndarray, observed_pairings:  dict[int, ObservedStarPair]) -> tuple[int, int, int, int] | None:
+    def determine_matching_quadruple(self, matcher_matrix: np.ndarray, observed_pairings:  dict[int, ObservedStarPair]) -> list[int] | None:
         first_matches: set[int] = set()
         second_matches: set[int] = set()
         third_matches: set[int] = set()
@@ -110,13 +114,13 @@ class StarMatcher:
 
         # put all candidate stars into set of corresponding observed star
         for row_idx, row_entries in enumerate(matcher_matrix):
-            if matcher.first_star_candidate(row_entries):
+            if self.first_star_candidate(row_entries):
                 first_matches.add(row_idx)
-            if matcher.second_star_candidate(row_entries):
+            if self.second_star_candidate(row_entries):
                 second_matches.add(row_idx)
-            if matcher.third_star_candidate(row_entries):
+            if self.third_star_candidate(row_entries):
                 third_matches.add(row_idx)
-            if matcher.fourth_star_candidate(row_entries):
+            if self.fourth_star_candidate(row_entries):
                 fourth_matches.add(row_idx)
         for ms in match_sets:
             for star_id in ms:
@@ -128,51 +132,83 @@ class StarMatcher:
         for set_idx, match_set in enumerate(match_sets):
             stars_to_eliminate_from_match_set = set()
             for star_id in match_set:
+                if star_id == 4589:
+                    print("halt")
                 has_valid_neighborhood = self._candidate_has_valid_neighbors(star_id, set_idx, match_sets, observed_pairings)
                 if not has_valid_neighborhood:
                     stars_to_eliminate_from_match_set.add(star_id)
             cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
             cleared_match_sets.append(cleared_match_set)
+
+        # do it again for good measure: TODO: There have been misidentified stars within the cleared match set in the past, this right here needs to be improved
+        cleared_cleared_match_sets = []
+        for set_idx, match_set in enumerate(cleared_match_sets):
+            stars_to_eliminate_from_match_set = set()
+            for star_id in match_set:
+                has_valid_neighborhood = self._candidate_has_valid_neighbors(star_id, set_idx, cleared_match_sets,
+                                                                             observed_pairings)
+                if not has_valid_neighborhood:
+                    stars_to_eliminate_from_match_set.add(star_id)
+            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
+            cleared_cleared_match_sets.append(cleared_match_set)
+
         print("\n\n\n")
         for cms in cleared_match_sets:
             for identifier in cms:
                 print(f"{identifier}: {catalog_dict.get(identifier).name}")
             print("---")
         print("-----------")
-        '''
-        for set_idx, match_set in enumerate(match_sets):
-            other_sets = Code.list_exclude_element(match_sets, set_idx)
-            stars_to_eliminate_from_match_set = set()
-            for star_id in match_set:
-                neighbor_set = neighbors.get(star_id)
-                for other_set in other_sets:
-                    if len(neighbor_set.intersection(other_set)) < 1:
-                        stars_to_eliminate_from_match_set.add(star_id)
-            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
-            cleared_match_sets.append(cleared_match_set)
-        print(cleared_match_sets)
-        for cms in cleared_match_sets:
-            for identifier in cms:
-                print(f"{identifier}: {catalog_dict.get(identifier).name}")
-            print("---")
-        print("-----------")
-        '''
+        stars_to_mark = self.match_sets_star_id_selector(cleared_cleared_match_sets)
+        self.draw_matched_stars_into_capture(stars_to_mark)
+        return stars_to_mark
 
+
+    @staticmethod
+    def match_sets_star_id_selector(cleared_match_sets: list[set[int]]) -> list[int] | None:
+        assert len(cleared_match_sets) == 4
+        min_elements = 2
+        for match_set in cleared_match_sets:
+            min_elements = min(min_elements, len(match_set))
+        if min_elements != 1:
+            return None
+        else:
+            return [match_set.pop() for match_set in cleared_match_sets]
+
+    def draw_matched_stars_into_capture(self, matched_ids: list[int]):
+        assert len(matched_ids) == 4
+        matched_star_names = [catalog_dict.get(i).name for i in matched_ids]
+        gray_img = Code.read_debug_image(Params.debug_gray_img)
+        for idx in self.observed_stars.keys():
+            observed = self.observed_stars.get(idx)
+            float_pos = observed.position
+            int_x, int_y = int(float_pos[0]), int(float_pos[1])
+            cv2.circle(gray_img, (int_x, int_y), radius=10, color=(0, 0, 255), thickness=1)
+
+            name_of_match = matched_ids[idx]
+            cv2.putText(
+                gray_img,
+                catalog_dict.get(matched_ids[idx]).name,(int_x + 15, int_y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA
+            )
+        Code.save_debug_image(Params.debug_circles_img, gray_img)
+
+    def triangulate_view_direction(self, field_of_view: float) -> UnitVector:
+        pass
 
 
 
 if __name__ == "__main__":
     WindowController.initial_setup()
-    field_of_view = 18
+    field_of_view = 17
     exposure_comp = 1
     star_magnitude_limit = 4.1
     tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
     tracker_cam.setup()
     night_sky_image = tracker_cam.take_screenshot("nightsky")
     si = StarImager(field_of_view, True)
-    matcher = StarMatcher(pairings)
-
     observed_stars, observed_pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
+
+    matcher = StarMatcher(observed_stars, observed_pairings)
     matcher_matrix = matcher.matcher_matrix(observed_pairings)
 
     for k in observed_stars.keys():
@@ -181,32 +217,6 @@ if __name__ == "__main__":
         osp = observed_pairings.get(k)
         print(k, Code.cosine_separation_to_angle_deg(osp.cosine_separation))
 
-    '''
-    first_matches = []
-    second_matches = []
-    third_matches = []
-    fourth_matches = []
-    for idx, row in enumerate(matcher_matrix):
-        if matcher.first_star_candidate(row):
-            first_matches.append(idx)
-        if matcher.second_star_candidate(row):
-            second_matches.append(idx)
-        if matcher.third_star_candidate(row):
-            third_matches.append(idx)
-        if matcher.fourth_star_candidate(row):
-            fourth_matches.append(idx)
-
-    match_arrays = [first_matches, second_matches, third_matches, fourth_matches]
-    for idx, ma in enumerate(match_arrays):
-        print(f"s{idx} matches:")
-        for identifier in ma:
-            print(f"{identifier}: {catalog_dict.get(identifier).name}")
-        print("--------")
-    '''
-    matcher.determine_matching_quadruple(matcher_matrix, observed_pairings)
-
-
-
-
-
+    quad = matcher.determine_matching_quadruple(matcher_matrix, observed_pairings)
+    print(quad)
 

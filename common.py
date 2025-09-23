@@ -88,6 +88,13 @@ class Params:
     close_x = assets_dir + "x.png"
     manual_m = assets_dir + "manual.png"
 
+    # debug images
+    debug_raw_img = "debug_raw_img.png"
+    debug_gray_img = "debug_gray_img.png"
+    debug_mask_img = "debug_mask_img.png"
+    debug_detected_img = "debug_detected_img.png"
+    debug_circles_img = "debug_circles_img.png"
+
     # astronomical size definitions in km
     astronomical_unit_km = 149597870.7
     calculated_sun_radius_km = 701827.6
@@ -133,6 +140,10 @@ class Code:
     @staticmethod
     def save_debug_image(filename: str, image: np.ndarray):
         cv2.imwrite(Params.debug_images_dir + filename, image)
+
+    @staticmethod
+    def read_debug_image(filename: str) -> np.ndarray:
+        return cv2.imread(Params.debug_images_dir + filename)
 
     @staticmethod
     def list_exclude_element(original_list: list, exclusion_idx: int) -> list:

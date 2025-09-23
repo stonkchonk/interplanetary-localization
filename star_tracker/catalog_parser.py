@@ -12,7 +12,7 @@ class UnitVector:
     radians_per_arcsec = radians_per_arcmin / 60
 
     def __init__(self, value: np.ndarray):
-        self.value = value
+        self.value = value / np.linalg.norm(value)
 
     @classmethod
     def from_celestial_radians(cls, right_ascension: float, declination: float):
@@ -50,6 +50,10 @@ class UnitVector:
 
     def dot_product(self, other_unit_vector: any) -> np.float64:
         return np.dot(self.value, other_unit_vector.value)
+
+    @classmethod
+    def from_cross_product(cls, first_unit_vector: any, second_unit_vector: any):
+        return cls(np.cross(first_unit_vector.value, second_unit_vector.value))
 
     def angular_rad_separation(self, other_unit_vector: any) -> np.float64:
         return np.arccos(self.dot_product(other_unit_vector))

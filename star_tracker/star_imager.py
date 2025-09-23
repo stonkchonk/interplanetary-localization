@@ -68,11 +68,6 @@ class StarImager:
         3: [2, 4, 5]
     }
 
-    debug_raw_img = "debug_raw_img.png"
-    debug_gray_img = "debug_gray_img.png"
-    debug_mask_img = "debug_mask_img.png"
-    debug_detected_img = "debug_detected_img.png"
-
     def __init__(self, field_of_view: float, save_debug_images: bool = False):
         self.field_of_view = field_of_view
         self.save_debug_images = save_debug_images
@@ -90,9 +85,9 @@ class StarImager:
         # transform image to grayscale
         gray_image = StarImager.raw_to_gray(raw_image)
         if self.save_debug_images:
-            Code.save_debug_image(self.debug_gray_img, gray_image)
+            Code.save_debug_image(Params.debug_gray_img, gray_image)
         # turn gray image to mask using thresholding
-        _, mask = cv2.threshold(gray_image, 75, 255, cv2.THRESH_BINARY)
+        _, mask = cv2.threshold(gray_image, 68, 255, cv2.THRESH_BINARY)
         return mask
 
     @staticmethod
@@ -121,7 +116,7 @@ class StarImager:
     def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]]:
         mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
         if self.save_debug_images:
-            Code.save_debug_image(self.debug_mask_img, mask_image)
+            Code.save_debug_image(Params.debug_mask_img, mask_image)
         keypoints = self.determine_keypoints(mask_image)
         viable_stars = self.viable_stars_from_keypoints(keypoints)
         viable_stars.sort(key=ObservedStar.sort_by_pixel_count, reverse=True)
@@ -131,7 +126,7 @@ class StarImager:
             detected_img = cv2.drawKeypoints(
                 mask_image, keypoints, blank, (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
             )
-            Code.save_debug_image(self.debug_detected_img, detected_img)
+            Code.save_debug_image(Params.debug_detected_img, detected_img)
 
         matching_candidate_stars = {}
         try:
