@@ -17,6 +17,14 @@ class Params:
     norm_radius = 499.5
     center_point = norm_radius, norm_radius
 
+    # angular values
+    radians_per_degree = math.pi / 180
+    radians_per_hour = radians_per_degree * 15
+    radians_per_minute = radians_per_hour / 60
+    radians_per_second = radians_per_minute / 60
+    radians_per_arcmin = radians_per_degree / 60
+    radians_per_arcsec = radians_per_arcmin / 60
+
     # lense correction model weights
     correction_model_exponents = [1, 3, 5, 7]
     correction_weights_fov92 = [0.273321270942688, -0.4249521493911743, 0.17944473028182983, -0.03077179752290249]
@@ -111,11 +119,11 @@ class Params:
 class Code:
     @staticmethod
     def deg_to_rad(angle_deg: float) -> float:
-        return angle_deg * math.pi / 180
+        return angle_deg * Params.radians_per_degree
 
     @staticmethod
     def rad_to_deg(angle_rad: float) -> float:
-        return angle_rad * 180 / math.pi
+        return angle_rad / Params.radians_per_degree
 
     @staticmethod
     def km_to_au(length: float) -> float:
@@ -152,3 +160,20 @@ class Code:
             if idx != exclusion_idx:
                 modified_list.append(element)
         return modified_list
+
+    @staticmethod
+    def fancy_format_ra_dec(ra_deg, dec_deg):
+        ra_hours_total = ra_deg / 15.0
+        ra_h = int(ra_hours_total)
+        ra_m = int((ra_hours_total - ra_h) * 60)
+        ra_s = (ra_hours_total - ra_h - ra_m / 60) * 3600
+
+        sign = "-" if dec_deg < 0 else "+"
+        dec_deg_abs = abs(dec_deg)
+        dec_d = int(dec_deg_abs)
+        dec_m = int((dec_deg_abs - dec_d) * 60)
+        dec_s = (dec_deg_abs - dec_d - dec_m / 60) * 3600
+
+        ra_str = f"{ra_h:02d}h {ra_m:02d}m {ra_s:06.4f}s"
+        dec_str = f"{sign}{dec_d:02d}° {dec_m:02d}′ {dec_s:05.4f}″"
+        return ra_str, dec_str

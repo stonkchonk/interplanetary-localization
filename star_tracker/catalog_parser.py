@@ -1,15 +1,12 @@
+import math
+
 import numpy as np
 from math import sin, cos, pi
 
+from common import Code, Params
+
 
 class UnitVector:
-
-    radians_per_degree = pi / 180
-    radians_per_hour = radians_per_degree * 15
-    radians_per_minute = radians_per_hour / 60
-    radians_per_second = radians_per_minute / 60
-    radians_per_arcmin = radians_per_degree / 60
-    radians_per_arcsec = radians_per_arcmin / 60
 
     def __init__(self, value: np.ndarray):
         self.value = value / np.linalg.norm(value)
@@ -22,6 +19,19 @@ class UnitVector:
             sin(declination)
         ])
         return cls(vector)
+
+    @property
+    def to_radians(self) -> tuple[float, float]:
+        """
+        Outputs right ascension and declination as two pi radian values.
+        """
+        return math.atan2(self.value[1], self.value[0]), math.asin(self.value[2])
+
+    @property
+    def to_degrees(self) -> tuple[float, float]:
+        r_rad, d_rad = self.to_radians
+        factor = 1 / Params.radians_per_degree
+        return r_rad * factor, d_rad * factor
 
     @classmethod
     def from_celestial_coordinate(cls, ra_hours: float, ra_minutes: float, ra_seconds: float,
@@ -38,10 +48,10 @@ class UnitVector:
         :return: An instance of this class
         """
         de_multiplier = -1 if de_sign == '-' else 1
-        ra_radians = (ra_hours * cls.radians_per_hour + ra_minutes * cls.radians_per_minute +
-                      ra_seconds * cls.radians_per_second)
-        de_radians = (de_degrees * cls.radians_per_degree + de_minutes * cls.radians_per_arcmin +
-                      de_seconds * cls.radians_per_arcsec) * de_multiplier
+        ra_radians = (ra_hours * Params.radians_per_hour + ra_minutes * Params.radians_per_minute +
+                      ra_seconds * Params.radians_per_second)
+        de_radians = (de_degrees * Params.radians_per_degree + de_minutes * Params.radians_per_arcmin +
+                      de_seconds * Params.radians_per_arcsec) * de_multiplier
         return cls.from_celestial_radians(ra_radians, de_radians)
 
     @classmethod
@@ -55,6 +65,17 @@ class UnitVector:
     def from_cross_product(cls, first_unit_vector: any, second_unit_vector: any):
         return cls(np.cross(first_unit_vector.value, second_unit_vector.value))
 
+    @classmethod
+    def from_rodrigues_rotation(cls, axis_unit_vector: any, position_unit_vector: any, rotation_angle_deg: float,
+                                invert: bool = False):
+        rotation_angle_deg = -rotation_angle_deg if invert else rotation_angle_deg
+        theta = Code.deg_to_rad(rotation_angle_deg)
+        v: np.ndarray = position_unit_vector.value
+        k: np.ndarray = axis_unit_vector.value
+        v_rot = v * cos(theta) + np.cross(k, v) * sin(theta) + k * np.dot(k, v) * (1 - cos(theta))
+        return cls(v_rot)
+
+
     def angular_rad_separation(self, other_unit_vector: any) -> np.float64:
         return np.arccos(self.dot_product(other_unit_vector))
 
@@ -64,7 +85,6 @@ class UnitVector:
 
 class CatalogStar:
     def __init__(self, name: str, position: UnitVector, visual_magnitude: float):
-        #self.identifier = identifier
         self.name = name
         self.position = position
         self.visual_magnitude = visual_magnitude

@@ -9,7 +9,7 @@ import subprocess
 import cv2
 
 from pre_startup_sol_mod import Modifier
-from common import Params
+from common import Params, Code
 from se_scripting import Script
 
 
@@ -226,11 +226,30 @@ class VirtualCamera:
         self.star_magnitude_limit = star_magnitude_limit
         self._set_star_magnitude_limit()
 
-    def set_position(self, dist_au: float, right_ascension: float, declination: float):
-        set_position_script = Script.set_position_script(dist_au, declination, right_ascension)
+    def set_position(self, dist_au: float, right_ascension_deg: float, declination_deg: float, suppress_print: bool = False):
+        set_position_script = Script.set_position_script(dist_au, declination_deg, right_ascension_deg)
         set_position_script.generate()
         WindowController.run_script(set_position_script)
-        print(f"\"{self.name}\" positioned at RA: {right_ascension}°, dec: {declination}°, {dist_au} AU from Sol.")
+        if not suppress_print:
+            print(f"\"{self.name}\" positioned at RA: {right_ascension_deg}°, dec: {declination_deg}°, {dist_au} AU from Sol.")
+
+    def set_position_celestial_coordinates(self, dist_au: float, ra_h: int, ra_m: int, ra_s: float,
+                                           de_sign: Literal['+', '-'], de_d: int, de_m: int, de_s: float):
+        assert 0 <= ra_h <= 23
+        assert 0 <= ra_m <= 59
+        assert 0 <= ra_s < 60
+        assert -89 <= de_d <= 89
+        assert 0 <= de_m <= 59
+        assert 0 <= de_s < 60
+        assert de_sign == '+' or de_sign == '-'
+        ra_rad = ra_h * Params.radians_per_hour + ra_m * Params.radians_per_minute + ra_s * Params.radians_per_second
+        de_rad = (1 if de_sign == '+' else -1) * (de_d * Params.radians_per_degree + de_m * Params.radians_per_arcmin + de_s * Params.radians_per_arcsec)
+        ra_deg = Code.rad_to_deg(ra_rad)
+        de_deg = Code.rad_to_deg(de_rad)
+        self.set_position(dist_au, ra_deg, de_deg, True)
+        ra_str, de_str = Code.fancy_format_ra_dec(ra_deg, de_deg)
+        print(f"\"{self.name}\" positioned at RA: {ra_str}, dec: {de_str}, {dist_au} AU from Sol.")
+
 
     def turn_around(self):
         WindowController.run_script(DefaultScripts.turn_around_script)
@@ -276,3 +295,7 @@ class VirtualCamera:
 
 if __name__ == "__main__":
     WindowController.initial_setup()
+    test_cam = VirtualCamera('test_cam', 1, 2, 4.1)
+    test_cam.setup()
+    test_cam.set_position_celestial_coordinates(3, 14, 39, 36.494, '-', 60, 50, 2.3737)
+    #test_cam.turn_around()

@@ -45,8 +45,8 @@ if __name__ == "__main__":
     observed_stars, observed_pairings = si.determine_four_stars_and_their_pairings(night_sky_image)
 
     matcher = StarMatcher(observed_stars, observed_pairings)
-    matcher_matrix = matcher.matcher_matrix(observed_pairings)
-    matching_quadruple_ids = matcher.determine_matching_quadruple(matcher_matrix, observed_pairings)
+    matcher_matrix = matcher.matcher_matrix()
+    matching_quadruple_ids = matcher.determine_matching_quadruple(matcher_matrix)
 
     atdt = AttitudeDeterminer(field_of_view)
     atdt.triangulate_view_vector(Params.center_point, list(observed_stars.values())[:-1], matching_quadruple_ids[:-1])
