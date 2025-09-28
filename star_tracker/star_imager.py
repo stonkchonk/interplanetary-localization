@@ -214,7 +214,7 @@ class StarImager:
             corresponding_pairings.append(pairing_dict)
         return corresponding_pairings
 
-    def determine_viable_quadruples(self, night_sky_image: np.ndarray, max_quadruples: int = 20) -> list[ObservedQuadruple]:
+    def determine_viable_quadruples(self, night_sky_image: np.ndarray, max_quadruples: int = 20) -> list[ObservedQuadruple] | None:
         mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
         keypoints = self.determine_keypoints(mask_image)
         if self.save_debug_images:
@@ -223,7 +223,8 @@ class StarImager:
 
         viable_stars = self.viable_stars_from_keypoints(keypoints)
         if len(viable_stars) < 4:
-            raise Exception(f"Not enough viable stars ({len(viable_stars)}) detected. Minimum number must be 4.")
+            print(f"Not enough viable stars ({len(viable_stars)}) detected. Minimum number must be 4.")
+            return None
 
         viable_quadruple_stars = self._determine_viable_quadruple_stars(viable_stars, max_quadruples)
         corresponding_pairings = self._determine_corresponding_pairings(viable_quadruple_stars, self.field_of_view_deg)

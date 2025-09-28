@@ -247,7 +247,7 @@ class VirtualCamera:
         ra_deg = Code.rad_to_deg(ra_rad)
         de_deg = Code.rad_to_deg(de_rad)
         self.set_position(dist_au, ra_deg, de_deg, True)
-        ra_str, de_str = Code.fancy_format_ra_dec(ra_deg, de_deg)
+        ra_str, de_str = Code.fancy_format_ra_dec((ra_deg, de_deg))
         print(f"\"{self.name}\" positioned at RA: {ra_str}, dec: {de_str}, {dist_au} AU from Sol.")
 
     def turn_around(self):

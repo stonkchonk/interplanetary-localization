@@ -5,7 +5,6 @@ import numpy as np
 
 from common import Code, Params
 from se_automation import WindowController, VirtualCamera
-from star_tracker.catalog_parser import UnitVector
 from star_tracker.star_pairing import CatalogStarPair
 from star_tracker.pairings import pairings
 from star_tracker.star_imager import ObservedStarPair, StarImager, ObservedStar, ObservedQuadruple
@@ -177,7 +176,7 @@ class StarMatcher:
                 quadruple_dict[identifier] = cleared_match_sets[idx].pop()
             return quadruple_dict
 
-    def determine_matching_quadruple(self):
+    def determine_matching_quadruple(self) -> dict[int, int] | None:
         return self.determine_matching_quadruple_from_matrix(self.matcher_matrix())
 
     def draw_matched_stars_into_capture(self, matched_ids_dict: dict[int, int]):
@@ -208,6 +207,31 @@ class StarMatcher:
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 128, 255), 1, cv2.LINE_AA
             )
         Code.save_debug_image(Params.debug_candidates_img, gray_img)
+
+
+class MultiMatcher:
+    """
+    Like StarMatcher but can take a list of quadruples for match making.
+    """
+    def __init__(self, observed_quadruples: list[ObservedQuadruple]):
+        self.observed_quadruples = observed_quadruples
+
+    def determine_match_from_multiple_quadruples(self) -> tuple[dict[int, int], dict[int, ObservedStar]] | None:
+        """
+        Returns matched star ids as dictionary as well as the corresponding observed stars.
+        :return:
+        """
+        num_of_quadruples = len(self.observed_quadruples)
+        for idx, observed_quadruple in enumerate(self.observed_quadruples):
+            try:
+                print(f"Try with quadruple {idx + 1 } of {num_of_quadruples}.")
+                matcher = StarMatcher(observed_quadruple)
+                matching_quadruple_ids = matcher.determine_matching_quadruple()
+                return matching_quadruple_ids, observed_quadruple.observed_stars_dict
+            except:
+                print(f"Could not match with quadruple {idx+1} of {num_of_quadruples}.")
+        return None
+
 
 
 
