@@ -1,4 +1,5 @@
 import math
+import random
 
 import numpy as np
 import cv2
@@ -42,6 +43,17 @@ class ObservedStarPair:
         return cls(math.cos(angular_separation))
 
 
+class ObservedQuadruple:
+    """
+    Wrapper class which contains observed stars and their corresponding observed pairs.
+    """
+    def __init__(self, observed_stars_dict: dict[int, ObservedStar], observed_pairings_dict: dict[int, ObservedStarPair]):
+        assert len(observed_stars_dict) == 4
+        assert len(observed_pairings_dict) == 6
+        self.observed_stars_dict = observed_stars_dict
+        self.observed_pairings_dict = observed_pairings_dict
+
+
 class StarImager:
 
     matching_candidate_ids = [0, 1, 2, 3]
@@ -68,8 +80,8 @@ class StarImager:
         3: [2, 4, 5]
     }
 
-    def __init__(self, field_of_view: float, save_debug_images: bool = False):
-        self.field_of_view = field_of_view
+    def __init__(self, field_of_view_deg: float, save_debug_images: bool = False):
+        self.field_of_view_deg = field_of_view_deg
         self.save_debug_images = save_debug_images
 
     @staticmethod
@@ -108,16 +120,18 @@ class StarImager:
         all_observed_stars = []
         for kp in keypoints:
             all_observed_stars.append(ObservedStar(int(kp.size), tuple(kp.pt)))
-        print(len(all_observed_stars))
+        print(f"Stars detected in frame: {len(all_observed_stars)}.")
         viable_stars = list(filter(ObservedStar.star_viable, all_observed_stars))
-        print(len(viable_stars))
+        print(f"Viable stars in frame: {len(viable_stars)}.")
         return viable_stars
 
     def determine_four_stars_and_their_pairings(self, night_sky_image: np.ndarray) -> tuple[dict[int, ObservedStar], dict[int, ObservedStarPair]]:
         mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
+        keypoints = self.determine_keypoints(mask_image)
         if self.save_debug_images:
             Code.save_debug_image(Params.debug_mask_img, mask_image)
-        keypoints = self.determine_keypoints(mask_image)
+            self._draw_detected_dots_image(mask_image, keypoints)
+
         viable_stars = self.viable_stars_from_keypoints(keypoints)
         viable_stars.sort(key=ObservedStar.sort_by_pixel_count, reverse=True)
 
@@ -140,9 +154,89 @@ class StarImager:
         for idx, identifier in enumerate(self.pairing_ids):
             pair_id1, pair_id2 = self.pair_by_ids[idx]
             star1, star2 = matching_candidate_stars.get(pair_id1), matching_candidate_stars.get(pair_id2)
-            candidate_pairings[identifier] = ObservedStarPair.from_observed_stars(star1, star2, self.field_of_view)
+            candidate_pairings[identifier] = ObservedStarPair.from_observed_stars(star1, star2, self.field_of_view_deg)
 
         return matching_candidate_stars, candidate_pairings
+
+    @staticmethod
+    def _draw_detected_dots_image(mask_image: np.ndarray, keypoints: list[cv2.KeyPoint]):
+        blank = np.zeros((1, 1))
+        detected_img = cv2.drawKeypoints(
+            mask_image, keypoints, blank, (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
+        )
+        Code.save_debug_image(Params.debug_detected_img, detected_img)
+
+
+
+    @staticmethod
+    def _determine_viable_quadruple_stars(viable_stars: list[ObservedStar], max_quadruples: int) -> list[dict[int, ObservedStar]]:
+        assert len(viable_stars) >= 4
+        viable_quadruple_star_sets: list[set[ObservedStar]] = []
+        viable_quadruples_length = min(max_quadruples, math.comb(len(viable_stars), 4))
+        additional_star_combinations = viable_quadruples_length - 1
+
+        # at first sort list and take the first four stars due to best likelihood of match
+        viable_stars.sort(key=ObservedStar.sort_by_pixel_count, reverse=True)
+        first_set = set()
+        for idx in range(0, 3+1):
+            first_set.add(viable_stars[idx])
+        viable_quadruple_star_sets.append(first_set)
+
+        # then add additional randomized star combination sets
+        for additional in range(0, additional_star_combinations):
+            next_set_already_in_viable_quads = True
+            while next_set_already_in_viable_quads:
+                next_set = set(random.sample(viable_stars, 4))
+                if next_set not in viable_quadruple_star_sets:
+                    viable_quadruple_star_sets.append(next_set)
+                    next_set_already_in_viable_quads = False
+
+        # turn quadruple star sets into dictionaries
+        viable_quadruple_star_dicts = []
+        for star_set in viable_quadruple_star_sets:
+            set_as_list = list(star_set)
+            quadruple_dict = {}
+            for identifier in StarImager.matching_candidate_ids:
+                quadruple_dict[identifier] = set_as_list[identifier]
+            viable_quadruple_star_dicts.append(quadruple_dict)
+
+        return viable_quadruple_star_dicts
+
+    @staticmethod
+    def _determine_corresponding_pairings(quadruple_star_dicts: list[dict[int, ObservedStar]], field_of_view_deg: float) -> list[dict[int, ObservedStarPair]]:
+        corresponding_pairings = []
+        for quadruple_dict in quadruple_star_dicts:
+            pairing_dict = {}
+            for identifier in StarImager.pairing_ids:
+                pair_id1, pair_id2 = StarImager.pair_by_ids[identifier]
+                star1, star2 = quadruple_dict.get(pair_id1), quadruple_dict.get(pair_id2)
+                pairing_dict[identifier] = ObservedStarPair.from_observed_stars(star1, star2, field_of_view_deg)
+            corresponding_pairings.append(pairing_dict)
+        return corresponding_pairings
+
+    def determine_viable_quadruples(self, night_sky_image: np.ndarray, max_quadruples: int = 20) -> list[ObservedQuadruple]:
+        mask_image = self.raw_to_mask(night_sky_image).astype("uint8")
+        keypoints = self.determine_keypoints(mask_image)
+        if self.save_debug_images:
+            Code.save_debug_image(Params.debug_mask_img, mask_image)
+            self._draw_detected_dots_image(mask_image, keypoints)
+
+        viable_stars = self.viable_stars_from_keypoints(keypoints)
+        if len(viable_stars) < 4:
+            raise Exception(f"Not enough viable stars ({len(viable_stars)}) detected. Minimum number must be 4.")
+
+        viable_quadruple_stars = self._determine_viable_quadruple_stars(viable_stars, max_quadruples)
+        corresponding_pairings = self._determine_corresponding_pairings(viable_quadruple_stars, self.field_of_view_deg)
+        assert len(viable_quadruple_stars) == len(corresponding_pairings)
+
+        viable_quadruple_objects = []
+        for idx, quadruple_dict in enumerate(viable_quadruple_stars):
+            viable_quadruple_objects.append(
+                ObservedQuadruple(quadruple_dict, corresponding_pairings[idx])
+            )
+        return viable_quadruple_objects
+
+
 
 
 

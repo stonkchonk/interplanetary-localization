@@ -30,21 +30,34 @@ class PairingDeterminer:
     pairings_file = "star_tracker/pairings.py"
     neighbors_file = "star_tracker/neighbors.py"
 
-    def __init__(self, max_viable_angle_deg: float, min_viable_angle_deg: float):
+    def __init__(self, max_viable_angle_deg: float, min_viable_angle_deg: float, max_magnitude: float,
+                 catalog_stars: dict[int, CatalogStar]):
         max_viable_angle_rad = max_viable_angle_deg * self.radians_per_degree
         min_viable_angle_rad = min_viable_angle_deg * self.radians_per_degree
         self.min_viable_cosine = cos(min_viable_angle_rad)
         self.max_viable_cosine = cos(max_viable_angle_rad)
+        self.filtered_catalog_dict = self._filter_by_magnitude(catalog_stars, max_magnitude)
 
-    def determine_pairings(self, catalog_stars: dict[int, CatalogStar]) -> list[CatalogStarPair]:
+    @staticmethod
+    def _filter_by_magnitude(catalog_stars: dict[int, CatalogStar], max_magnitude: float) -> dict[int, CatalogStar]:
+        stars_to_remove = []
+        for identifier in catalog_stars.keys():
+            star = catalog_stars.get(identifier)
+            if star.visual_magnitude > max_magnitude:
+                stars_to_remove.append(identifier)
+        for identifier in stars_to_remove:
+            del catalog_stars[identifier]
+        return catalog_stars
+
+    def determine_viable_pairings(self) -> list[CatalogStarPair]:
         viable_star_pairs = []
-        star_ids = set(catalog_stars.keys())
-        print("determine all possible pairing tuples")
+        star_ids = set(self.filtered_catalog_dict.keys())
+        #print("determine all possible pairing tuples")
         pairing_tuples = self.pairing_tuples(star_ids)
-        print("determine viable pairs")
+        #print("determine viable pairs")
         for pairing_tuple in pairing_tuples:
             first_id, second_id = pairing_tuple
-            first_star, second_star = catalog_stars.get(first_id), catalog_stars.get(second_id)
+            first_star, second_star = self.filtered_catalog_dict.get(first_id), self.filtered_catalog_dict.get(second_id)
             cosine_separation = first_star.position.dot_product(second_star.position)
             separation_viable = self.min_viable_cosine >= cosine_separation >= self.max_viable_cosine
             if separation_viable:
@@ -100,20 +113,20 @@ class PairingDeterminer:
 
 
 if __name__ == "__main__":
-    catalog_stars_dict = catalog_dict
-    stars_to_remove = []
-    for identifier in catalog_stars_dict.keys():
-        star = catalog_stars_dict.get(identifier)
-        if star.visual_magnitude > 4.3:
-            stars_to_remove.append(identifier)
-    for identifier in stars_to_remove:
-        del catalog_stars_dict[identifier]
-    print(len(catalog_stars_dict))
+    #catalog_stars_dict = catalog_dict
+    #stars_to_remove = []
+    #for identifier in catalog_stars_dict.keys():
+    #    star = catalog_stars_dict.get(identifier)
+    #    if star.visual_magnitude > 4.3:
+    #        stars_to_remove.append(identifier)
+    #for identifier in stars_to_remove:
+    #    del catalog_stars_dict[identifier]
+    #print(len(catalog_stars_dict))
     max_fov = 17.0
-    pd = PairingDeterminer(max_fov, max_fov / 1000)
-    pairings = pd.determine_pairings(catalog_stars_dict)
+    max_magnitude = 4.9
+    pd = PairingDeterminer(max_fov, max_fov / 1000, max_magnitude, catalog_dict)
+    pairings = pd.determine_viable_pairings()
     pairings.sort(key=CatalogStarPair.sorting_key)
-    print(len(pairings))
+    print(len(pairings), len(pd.filtered_catalog_dict))
     pd.generate_pairing_file(pairings)
     pd.generate_neighbors_file(pairings)
-

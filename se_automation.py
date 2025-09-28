@@ -35,7 +35,7 @@ class WindowController:
         # if yes, continue
         WindowController._prepare_window()
         print("Window setup completed.")
-        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.photo_mode_var} {Params.default_photo_mode_val}")
+        WindowController.enter_command_procedure(f"{Params.set_cmd} {Params.photo_mode_var} {Params.manual_photo_mode_val}")
         WindowController.move(Params.neutral_pos)
         print("Camera mode setup completed.")
         DefaultScripts.turn_around_script.generate()
@@ -250,7 +250,6 @@ class VirtualCamera:
         ra_str, de_str = Code.fancy_format_ra_dec(ra_deg, de_deg)
         print(f"\"{self.name}\" positioned at RA: {ra_str}, dec: {de_str}, {dist_au} AU from Sol.")
 
-
     def turn_around(self):
         WindowController.run_script(DefaultScripts.turn_around_script)
         print(f"\"{self.name}\" pointing towards the stars.")
@@ -268,7 +267,6 @@ class VirtualCamera:
         WindowController.run_script(DefaultScripts.sun_detection_script)
         print("Took six sun detection screenshots.")
         return FileController.fetch_multiple_by_tag(Params.sun_detection_image_prefixes)
-        # TODO: Erweitern um return wert, nämlich die Bilder
 
     @staticmethod
     def turn_precisely(axis: Literal['x', 'y', 'z'], turn_angle: float):
@@ -285,6 +283,13 @@ class VirtualCamera:
             WindowController.run_script(screenshot_script)
             print(f"Took screenshot \"{prefix}\".")
         return FileController.fetch_latest_image_by_tag(prefix)
+
+    @staticmethod
+    def subsequent_photo_mode_adjustment(new_photo_mode: Literal['manual', 'auto']):
+        assert new_photo_mode == 'manual' or new_photo_mode == 'auto'
+        photo_mode_val = Params.manual_photo_mode_val if new_photo_mode == 'manual' else Params.automatic_photo_mode_val
+        WindowController.enter_command_procedure(
+            f"{Params.set_cmd} {Params.photo_mode_var} {photo_mode_val}")
 
     def setup(self):
         self._set_fov()

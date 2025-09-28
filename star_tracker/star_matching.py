@@ -8,18 +8,20 @@ from se_automation import WindowController, VirtualCamera
 from star_tracker.catalog_parser import UnitVector
 from star_tracker.star_pairing import CatalogStarPair
 from star_tracker.pairings import pairings
-from star_tracker.star_imager import ObservedStarPair, StarImager, ObservedStar
+from star_tracker.star_imager import ObservedStarPair, StarImager, ObservedStar, ObservedQuadruple
 from star_tracker.catalog_dict import catalog_dict
 from star_tracker.neighbors import neighbors
 
 
 class StarMatcher:
 
-    def __init__(self, observed_stars: dict[int, ObservedStar], observed_pairings: dict[int, ObservedStarPair]):
-        assert len(observed_stars) == 4
-        assert len(observed_pairings) == 6
-        self.observed_stars = observed_stars
-        self.observed_pairings = observed_pairings
+    def __init__(self, observed_quadruple: ObservedQuadruple):
+        self.observed_stars = observed_quadruple.observed_stars_dict
+        self.observed_pairings = observed_quadruple.observed_pairings_dict
+        assert len(self.observed_stars) == 4
+        assert len(self.observed_pairings) == 6
+        # immediately draw candidate quadruple after creating instance of this
+        self.draw_candidate_quadruple_into_capture()
 
 
     @staticmethod
@@ -122,7 +124,7 @@ class StarMatcher:
             cleared_match_sets.append(cleared_match_set)
         return cleared_match_sets
 
-    def determine_matching_quadruple(self, matcher_matrix: np.ndarray) -> list[int] | None:
+    def determine_matching_quadruple_from_matrix(self, matcher_matrix: np.ndarray) -> dict[int, int] | None:
         first_matches: set[int] = set()
         second_matches: set[int] = set()
         third_matches: set[int] = set()
@@ -139,37 +141,6 @@ class StarMatcher:
                 third_matches.add(row_idx)
             if self.fourth_star_candidate(row_entries):
                 fourth_matches.add(row_idx)
-        for ms in match_sets:
-            for star_id in ms:
-                print(f"{star_id}: {catalog_dict.get(star_id).name}")
-            print("------")
-
-        '''
-        # eliminate all candidate stars which do not have neighbors in all other candidate sets
-        cleared_match_sets = []
-        for set_idx, match_set in enumerate(match_sets):
-            stars_to_eliminate_from_match_set = set()
-            for star_id in match_set:
-                if star_id == 4589:
-                    print("halt")
-                has_valid_neighborhood = self._candidate_has_valid_neighbors(star_id, set_idx, match_sets)
-                if not has_valid_neighborhood:
-                    stars_to_eliminate_from_match_set.add(star_id)
-            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
-            cleared_match_sets.append(cleared_match_set)
-
-        # do it again for good measure: TODO: There have been misidentified stars within the cleared match set in the past, this right here needs to be improved
-        cleared_cleared_match_sets = []
-        for set_idx, match_set in enumerate(cleared_match_sets):
-            stars_to_eliminate_from_match_set = set()
-            for star_id in match_set:
-                has_valid_neighborhood = self._candidate_has_valid_neighbors(star_id, set_idx, cleared_match_sets)
-                if not has_valid_neighborhood:
-                    stars_to_eliminate_from_match_set.add(star_id)
-            cleared_match_set = match_set.difference(stars_to_eliminate_from_match_set)
-            cleared_cleared_match_sets.append(cleared_match_set)
-        
-        '''
 
         current_match_sets_size = self._count_match_sets_members(match_sets)
         new_match_sets_size = math.inf
@@ -185,39 +156,60 @@ class StarMatcher:
                 print(f"{identifier}: {catalog_dict.get(identifier).name}")
             print("---")
         print("-----------")
-        stars_to_mark = self.match_sets_star_id_selector(match_sets)
-        self.draw_matched_stars_into_capture(stars_to_mark)
-        return stars_to_mark
-
+        matching_quadruple = self._reduce_cleared_match_sets_to_dict(match_sets)
+        if matching_quadruple is None:
+            raise Exception("Could not match stars with given observed quadruple.")
+        self.draw_matched_stars_into_capture(matching_quadruple)
+        return matching_quadruple
 
     @staticmethod
-    def match_sets_star_id_selector(cleared_match_sets: list[set[int]]) -> list[int] | None:
+    def _reduce_cleared_match_sets_to_dict(cleared_match_sets: list[set[int]]) -> dict[int, int] | None:
         assert len(cleared_match_sets) == 4
         min_elements = 2
         for match_set in cleared_match_sets:
             min_elements = min(min_elements, len(match_set))
         if min_elements != 1:
+            # there must be at least a single non-binary star to rule out misidentification because binaries are unknown
             return None
         else:
-            return [match_set.pop() for match_set in cleared_match_sets]
+            quadruple_dict = {}
+            for idx, identifier in enumerate(StarImager.matching_candidate_ids):
+                quadruple_dict[identifier] = cleared_match_sets[idx].pop()
+            return quadruple_dict
 
-    def draw_matched_stars_into_capture(self, matched_ids: list[int]):
-        assert len(matched_ids) == 4
-        matched_star_names = [catalog_dict.get(i).name for i in matched_ids]
+    def determine_matching_quadruple(self):
+        return self.determine_matching_quadruple_from_matrix(self.matcher_matrix())
+
+    def draw_matched_stars_into_capture(self, matched_ids_dict: dict[int, int]):
+        assert len(matched_ids_dict) == 4
         gray_img = Code.read_debug_image(Params.debug_gray_img)
         for idx in self.observed_stars.keys():
             observed = self.observed_stars.get(idx)
             float_pos = observed.position
             int_x, int_y = int(float_pos[0]), int(float_pos[1])
             cv2.circle(gray_img, (int_x, int_y), radius=10, color=(0, 0, 255), thickness=1)
-
-            name_of_match = matched_ids[idx]
             cv2.putText(
                 gray_img,
-                catalog_dict.get(matched_ids[idx]).name,(int_x + 15, int_y - 10),
+                catalog_dict.get(matched_ids_dict[idx]).name, (int_x + 15, int_y - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA
             )
-        Code.save_debug_image(Params.debug_circles_img, gray_img)
+        Code.save_debug_image(Params.debug_matched_img, gray_img)
+
+    def draw_candidate_quadruple_into_capture(self):
+        gray_img = Code.read_debug_image(Params.debug_gray_img)
+        for idx in self.observed_stars.keys():
+            observed = self.observed_stars.get(idx)
+            float_pos = observed.position
+            int_x, int_y = int(float_pos[0]), int(float_pos[1])
+            cv2.circle(gray_img, (int_x, int_y), radius=10, color=(0, 128, 255), thickness=1)
+            cv2.putText(
+                gray_img,
+                str(idx), (int_x + 15, int_y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 128, 255), 1, cv2.LINE_AA
+            )
+        Code.save_debug_image(Params.debug_candidates_img, gray_img)
+
+
 
 
 if __name__ == "__main__":
@@ -240,6 +232,6 @@ if __name__ == "__main__":
         osp = observed_pairings.get(k)
         print(k, Code.cosine_separation_to_angle_deg(osp.cosine_separation))
 
-    quad = matcher.determine_matching_quadruple(matcher_matrix)
+    quad = matcher.determine_matching_quadruple_from_matrix(matcher_matrix)
     print(quad)
 

@@ -16,9 +16,12 @@ class Params:
     click_correction = 4, 4
     norm_radius = 499.5
     center_point = norm_radius, norm_radius
+    center_point_as_int = int(norm_radius), int(norm_radius)
 
     # angular values
-    radians_per_degree = math.pi / 180
+    degrees_per_full_circle = 360
+    degrees_per_half_circle = degrees_per_full_circle / 2
+    radians_per_degree = math.pi / degrees_per_half_circle
     radians_per_hour = radians_per_degree * 15
     radians_per_minute = radians_per_hour / 60
     radians_per_second = radians_per_minute / 60
@@ -50,7 +53,8 @@ class Params:
     star_magnitude_limit = "StarMagnLimit"
     galaxy_magnitude_limit = "GalaxyMagnLimit"
     planet_magnitude_limit = "PlanetMagnLimit"
-    default_photo_mode_val = "1"
+    manual_photo_mode_val = "1"
+    automatic_photo_mode_val = "2"
     default_star_magnitude_limit: float = 7
 
     # se commands
@@ -97,11 +101,12 @@ class Params:
     manual_m = assets_dir + "manual.png"
 
     # debug images
-    debug_raw_img = "debug_raw_img.png"
     debug_gray_img = "debug_gray_img.png"
     debug_mask_img = "debug_mask_img.png"
     debug_detected_img = "debug_detected_img.png"
-    debug_circles_img = "debug_circles_img.png"
+    debug_matched_img = "debug_matched_img.png"
+    debug_candidates_img = "debug_candidates_img.png"
+    debug_triangulated_img = "debug_triangulated_img.png"
 
     # astronomical size definitions in km
     astronomical_unit_km = 149597870.7
@@ -162,7 +167,10 @@ class Code:
         return modified_list
 
     @staticmethod
-    def fancy_format_ra_dec(ra_deg, dec_deg):
+    def fancy_format_ra_dec(ra_dec_deg: tuple[float, float], opencv_friendly_text: bool = False):
+        ra_deg, dec_deg = ra_dec_deg
+        ra_deg = ra_deg % Params.degrees_per_full_circle
+
         ra_hours_total = ra_deg / 15.0
         ra_h = int(ra_hours_total)
         ra_m = int((ra_hours_total - ra_h) * 60)
@@ -174,6 +182,10 @@ class Code:
         dec_m = int((dec_deg_abs - dec_d) * 60)
         dec_s = (dec_deg_abs - dec_d - dec_m / 60) * 3600
 
-        ra_str = f"{ra_h:02d}h {ra_m:02d}m {ra_s:06.4f}s"
-        dec_str = f"{sign}{dec_d:02d}° {dec_m:02d}′ {dec_s:05.4f}″"
+        if opencv_friendly_text:
+            ra_str = f"{ra_h:02d}h {ra_m:02d}m {ra_s:06.4f}s"
+            dec_str = f"{sign}{dec_d:02d}deg {dec_m:02d}' {dec_s:05.4f}\""
+        else:
+            ra_str = f"{ra_h:02d}h {ra_m:02d}m {ra_s:06.4f}s"
+            dec_str = f"{sign}{dec_d:02d}° {dec_m:02d}′ {dec_s:05.4f}″"
         return ra_str, dec_str
