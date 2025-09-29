@@ -55,9 +55,10 @@ class AttitudeDeterminer:
         )
         Code.save_debug_image(Params.debug_triangulated_img, matched_img)
 
-    def full_attitude_determination_procedure(self, virtual_camera: VirtualCamera):
+    def full_attitude_determination_procedure(self, virtual_camera: VirtualCamera) -> UnitVector:
         """
         Virtual camera must be set up and pointing at the sun before running this procedure.
+        Returns calculated attitude as UnitVector.
         """
         # predefine camera turning angles
         turn_angles = [90]
@@ -103,10 +104,7 @@ class AttitudeDeterminer:
 
             attitude_unit_vector: UnitVector = UnitVector.from_rodrigues_rotation(axis_vector, view_vector,
                                                                                   remaining_angle_until_half_turn)
-            print(Code.fancy_format_ra_dec(attitude_unit_vector.to_degrees))
-            break
-
-
+            return attitude_unit_vector
 
 
 if __name__ == "__main__":
@@ -117,11 +115,25 @@ if __name__ == "__main__":
     tracker_cam = VirtualCamera("Star Tracker Camera", field_of_view, exposure_comp, star_magnitude_limit)
     tracker_cam.setup()
     #tracker_cam.set_position_celestial_coordinates(3, 14, 39, 36.494, '-', 60, 50, 15.0992) # alpha centauri
-    tracker_cam.set_position_celestial_coordinates(3, 2, 31, 49.09, '+', 89, 15, 50.8)  # polaris
+
+    # distance
+    dist_au = 3.0
+    # right ascension
+    ra_h, ra_m, ra_s = 2, 31, 49.09
+    # declination
+    de_sign, de_d, de_m, de_s = '+', 19, 15, 50.8
+
+    initial_position_vector = UnitVector.from_celestial_coordinate(ra_h, ra_m, ra_s, de_sign, de_d, de_m, de_s)
+
+    tracker_cam.set_position_celestial_coordinates(dist_au, ra_h, ra_m, ra_s, de_sign, de_d, de_m, de_s)  # polaris
 
 
     atdt = AttitudeDeterminer(field_of_view)
-    atdt.full_attitude_determination_procedure(tracker_cam)
+    calculated_position_vector = atdt.full_attitude_determination_procedure(tracker_cam)
+    print(f"Positioned at: {Code.fancy_format_ra_dec(calculated_position_vector.to_degrees)}")
+
+    angular_separation_deg = Code.rad_to_deg(initial_position_vector.angular_rad_separation(calculated_position_vector))
+    print(f"Angular separation between initial and calculated position: {angular_separation_deg}°.")
 
 
     '''
