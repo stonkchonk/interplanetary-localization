@@ -55,10 +55,45 @@ class AttitudeDeterminer:
         )
         Code.save_debug_image(Params.debug_triangulated_img, matched_img)
 
+    def view_attitude_determination_procedure(self, virtual_camera: VirtualCamera) -> tuple[UnitVector, UnitVector] | None:
+        """
+        Virtual camera must be set up and pointing at the sun before running this procedure.
+        Returns tuple of view vector and rotation axis vector or None if view vector cannot be determined.
+        """
+        night_sky_image = virtual_camera.take_screenshot("nightsky")
+        star_imager = StarImager(field_of_view, True)
+        observed_viable_quadruples = star_imager.determine_viable_quadruples(night_sky_image)
+
+        # not enough stars in frame
+        if observed_viable_quadruples is None:
+            print("Could not match any stars within this frame.")
+            return None
+
+        print(f"Number of Quadruples in frame: {len(observed_viable_quadruples)}")
+        multi_matcher = MultiMatcher(observed_viable_quadruples)
+        matching_result = multi_matcher.determine_match_from_multiple_quadruples()
+
+        # if no match is possible return None
+        if matching_result is None:
+            print("Could not match any stars within this frame.")
+            return None
+
+        # unpack matched stars and observed stars
+        matching_quadruple_ids, observed_stars_dict = matching_result
+        three_observed_stars = list(observed_stars_dict.values())[:-1]
+        three_matched_stars = list(matching_quadruple_ids.values())[:-1]
+
+        # triangulate view vector and rotation axis
+        view_vector = self.triangulate_view_vector(Params.center_point, three_observed_stars, three_matched_stars)
+        self.draw_view_vector(view_vector)
+        axis_vector = self.determine_rotation_axis(three_observed_stars, three_matched_stars)
+        print(f"Looking at: {Code.fancy_format_ra_dec(view_vector.to_degrees)}")
+        return view_vector, axis_vector
+
     def full_attitude_determination_procedure(self, virtual_camera: VirtualCamera) -> UnitVector:
         """
         Virtual camera must be set up and pointing at the sun before running this procedure.
-        Returns calculated attitude as UnitVector.
+        Determines attitude relative to the sun by moving the camera frame.
         """
         # predefine camera turning angles
         turn_angles = [90]
@@ -68,35 +103,13 @@ class AttitudeDeterminer:
         for idx, turn_angle in enumerate(turn_angles):
             # turn camera, determine quadruples of current frame
             print(f"Attitude determination attempt {idx + 1} out of {len(turn_angles)} attempts.")
-            virtual_camera.turn_precisely('y', turn_angle)
-            night_sky_image = tracker_cam.take_screenshot("nightsky")
-            star_imager = StarImager(field_of_view, True)
-            observed_viable_quadruples = star_imager.determine_viable_quadruples(night_sky_image)
+            virtual_camera.turn_precisely('y', turn_angle, turn_duration=5)
 
-            # not enough stars in frame, continue turning camera
-            if observed_viable_quadruples is None:
-                print("Could not match any stars, continue turning camera.")
+            view_attitude_vectors = self.view_attitude_determination_procedure(virtual_camera)
+            if view_attitude_vectors is None:
+                print("Continue turning camera to next frame.")
                 continue
-
-            print(f"Number of Quadruples in frame: {len(observed_viable_quadruples)}")
-            multi_matcher = MultiMatcher(observed_viable_quadruples)
-            matching_result = multi_matcher.determine_match_from_multiple_quadruples()
-
-            # if no match is possible, continue turning camera
-            if matching_result is None:
-                print("Could not match any stars, continue turning camera.")
-                continue
-
-            # unpack matched stars and observed stars
-            matching_quadruple_ids, observed_stars_dict = matching_result
-            three_observed_stars = list(observed_stars_dict.values())[:-1]
-            three_matched_stars = list(matching_quadruple_ids.values())[:-1]
-
-            # triangulate view vector and rotation axis
-            view_vector = self.triangulate_view_vector(Params.center_point, three_observed_stars, three_matched_stars)
-            self.draw_view_vector(view_vector)
-            axis_vector = self.determine_rotation_axis(three_observed_stars, three_matched_stars)
-            print(f"Looking at: {Code.fancy_format_ra_dec(view_vector.to_degrees)}")
+            view_vector, axis_vector = view_attitude_vectors
 
             # Calculate attitude relative to the sun from current turning angle, axis vector and view vector.
             current_turn_angle = sum(turn_angles[:idx+1])
@@ -119,42 +132,20 @@ if __name__ == "__main__":
     # distance
     dist_au = 3.0
     # right ascension
-    ra_h, ra_m, ra_s = 2, 31, 49.09
+    ra_h, ra_m, ra_s = 15, 31, 49.09
     # declination
-    de_sign, de_d, de_m, de_s = '+', 19, 15, 50.8
+    de_sign, de_d, de_m, de_s = '-', 39, 15, 50.8
+
+    # schaut auf eta carina nebula: 2, 31, 49.09    '-', 39, 15, 50.8
 
     initial_position_vector = UnitVector.from_celestial_coordinate(ra_h, ra_m, ra_s, de_sign, de_d, de_m, de_s)
 
-    tracker_cam.set_position_celestial_coordinates(dist_au, ra_h, ra_m, ra_s, de_sign, de_d, de_m, de_s)  # polaris
-
+    #tracker_cam.set_position_celestial_coordinates(dist_au, ra_h, ra_m, ra_s, de_sign, de_d, de_m, de_s)  # polaris
 
     atdt = AttitudeDeterminer(field_of_view)
-    calculated_position_vector = atdt.full_attitude_determination_procedure(tracker_cam)
-    print(f"Positioned at: {Code.fancy_format_ra_dec(calculated_position_vector.to_degrees)}")
+    atdt.view_attitude_determination_procedure(tracker_cam)
+    #calculated_position_vector = atdt.full_attitude_determination_procedure(tracker_cam)
+    #print(f"Positioned at: {Code.fancy_format_ra_dec(calculated_position_vector.to_degrees)}")
 
-    angular_separation_deg = Code.rad_to_deg(initial_position_vector.angular_rad_separation(calculated_position_vector))
-    print(f"Angular separation between initial and calculated position: {angular_separation_deg}°.")
-
-
-    '''
-    night_sky_image = tracker_cam.take_screenshot("nightsky")
-    si = StarImager(field_of_view, True)
-
-    observed_viable_quadruples = si.determine_viable_quadruples(night_sky_image)
-    print(f"Num of Quads: {len(observed_viable_quadruples)}")
-
-    for idx, observed_quadruple in enumerate(observed_viable_quadruples):
-        try:
-            print(f"Try with quadruple number: {idx}")
-            matcher = StarMatcher(observed_quadruple)
-            matching_quadruple_ids = matcher.determine_matching_quadruple()
-            atdt = AttitudeDeterminer(field_of_view)
-            view_vector = atdt.triangulate_view_vector(Params.center_point,
-                                                       list(observed_quadruple.observed_stars_dict.values())[:-1],
-                                                       list(matching_quadruple_ids.values())[:-1])
-            atdt.draw_view_vector(view_vector)
-            print(Code.fancy_format_ra_dec(view_vector.to_degrees))
-            break
-        except Exception as e:
-            print(f"Could not match with quadruple number: {idx}",e)
-    '''
+    #angular_separation_deg = Code.rad_to_deg(initial_position_vector.angular_rad_separation(calculated_position_vector))
+    #print(f"Angular separation between initial and calculated position: {angular_separation_deg}°.")

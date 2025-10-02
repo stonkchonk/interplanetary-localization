@@ -269,8 +269,8 @@ class VirtualCamera:
         return FileController.fetch_multiple_by_tag(Params.sun_detection_image_prefixes)
 
     @staticmethod
-    def turn_precisely(axis: Literal['x', 'y', 'z'], turn_angle: float):
-        turn_script = Script.turn_precisely_script(axis, turn_angle)
+    def turn_precisely(axis: Literal['x', 'y', 'z'], turn_angle: float, turn_duration: float = 2):
+        turn_script = Script.turn_precisely_script(axis, turn_angle, turn_duration=turn_duration)
         turn_script.generate()
         WindowController.run_script(turn_script)
         print(f"Rotated around {axis}-axis by {turn_angle}°.")

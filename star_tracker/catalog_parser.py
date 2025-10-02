@@ -75,7 +75,6 @@ class UnitVector:
         v_rot = v * cos(theta) + np.cross(k, v) * sin(theta) + k * np.dot(k, v) * (1 - cos(theta))
         return cls(v_rot)
 
-
     def angular_rad_separation(self, other_unit_vector: any) -> np.float64:
         return np.arccos(self.dot_product(other_unit_vector))
 
