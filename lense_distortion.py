@@ -66,6 +66,8 @@ class RadialDistortionCorrector:
                               center_point: tuple[float, float], norm_radius: float, exponents: list[int]):
         normed_distorted_radii = [cls.point_to_radius(p, center_point, norm_radius) for p in distorted_points]
         normed_supposed_radii = [cls.point_to_radius(p, center_point, norm_radius) for p in supposed_points]
+        print(normed_distorted_radii)
+        print(normed_supposed_radii)
 
         for idx, s in enumerate(normed_supposed_radii):
             print(f"P{idx} = {s, normed_distorted_radii[idx]}")

@@ -1,13 +1,16 @@
+import math
+
 import numpy as np
 
 from lense_distortion import RadialDistortionCorrector
-from common import Params
+from common import Params, Code
 from se_automation import VirtualCamera, WindowController
 import cv2
 from math import atan, pi
 
 
 class SunDetector:
+    mask_counter = 0
     @staticmethod
     def raw_to_mask(raw_image: np.ndarray) -> np.ndarray:
         """
@@ -19,6 +22,8 @@ class SunDetector:
         gray_image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
         # turn gray image to mask using thresholding
         _, mask = cv2.threshold(gray_image, 248, 255, cv2.THRESH_BINARY)
+        Code.save_debug_image(str(SunDetector.mask_counter)+".png", mask)
+        SunDetector.mask_counter += 1
         return mask
 
     @staticmethod
@@ -110,7 +115,7 @@ if __name__ == "__main__":
     sun_cam.set_position(2.55, 37.954542, 89.264111)
 
     # point camera in random direction
-    sun_cam.rand_rotate()  # override: (55.2, 0.0, 45.0)
+    sun_cam.rand_rotate()  # override: (70.0, 0.0, 10.0) (55.2, 0.0, 45.0)
 
     # take images of surroundings
     surrounding_images_dict = sun_cam.take_sun_detection_screenshots()
@@ -147,11 +152,11 @@ if __name__ == "__main__":
     sun_cam.turn_precisely('z', sun_image_angle_deg)
     # sun should now be right of the center aligned in the middle
     distortion_corrector = RadialDistortionCorrector(Params.correction_weights_fov92, Params.center_point,
-                                                     Params.norm_radius, Params.correction_model_exponents)
+                                                     Params.diagonal_norm_radius, Params.correction_model_exponents)
 
     corrected_sun_point = distortion_corrector.correct_distorted_point(observed_sun_point)
     radius_of_point = distortion_corrector.self_point_to_radius(corrected_sun_point)
-    sun_cam.turn_precisely('y', -(field_of_view / 2) * radius_of_point)
+    sun_cam.turn_precisely('y', -(field_of_view / 2) * radius_of_point*math.sqrt(2))
 
     analysis_img = sun_cam.take_screenshot("analysis_img")
     analysis_center = SunDetector.center_point_of_raw(analysis_img)

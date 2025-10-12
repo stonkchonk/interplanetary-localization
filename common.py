@@ -15,6 +15,7 @@ class Params:
     bottom_menu_input = 900, 985
     click_correction = 4, 4
     norm_radius = 499.5
+    diagonal_norm_radius = norm_radius * math.sqrt(2)
     center_point = norm_radius, norm_radius
     center_point_as_int = int(norm_radius), int(norm_radius)
 
@@ -30,7 +31,7 @@ class Params:
 
     # lense correction model weights
     correction_model_exponents = [1, 3, 5, 7]
-    correction_weights_fov92 = [0.273321270942688, -0.4249521493911743, 0.17944473028182983, -0.03077179752290249]
+    correction_weights_fov92 = [0.2772715389728546, -0.785986602306366, 0.5158714652061462, -0.14963848888874054]#[0.273321270942688, -0.4249521493911743, 0.17944473028182983, -0.03077179752290249]
 
     # waiting for gui sleep times
     sleep_minimal = 0.1
