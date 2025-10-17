@@ -39,19 +39,19 @@ class RadialDistortionCorrector:
 
     @property
     def supposed_distortions_str(self) -> str:
-        sd_str = "{"
-        for sd in self.supposed_distortions:
-            sd_str += str(sd) + ","
-        sd_str = sd_str[:-1] + "}"
-        return sd_str
+        return self.points_as_geo_gebra_string(self.supposed_distortions)
 
     @property
     def corrected_distortions_str(self) -> str:
-        cd_str = "{"
-        for cd in self.corrected_distortions:
-            cd_str += str(cd) + ","
-        cd_str = cd_str[:-1] + "}"
-        return cd_str
+        return self.points_as_geo_gebra_string(self.corrected_distortions)
+
+    @staticmethod
+    def points_as_geo_gebra_string(points: list[tuple[float, float]]) -> str:
+        geo_gebra_string = "{"
+        for p in points:
+            geo_gebra_string += str(p) + ","
+        geo_gebra_string = geo_gebra_string[:-1] + "}"
+        return geo_gebra_string
 
     def self_point_to_radius(self, point: tuple[float, float]):
         return self.point_to_radius(point, self.center_point, self.norm_radius)
